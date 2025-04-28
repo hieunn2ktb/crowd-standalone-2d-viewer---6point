@@ -1,0 +1,299 @@
+.guide-area{
+    background: #fff;
+}
+.guide-editor
+{
+    /* Font */
+    font-family: sans-serif, Arial, Verdana, "Trebuchet MS";
+    font-size: 13px;
+    line-height: 1.6em;
+    /* Text color */
+    color: #333;
+    /* Remove the background color to make it transparent */
+    background-color: #fff;
+    margin: 20px;
+}
+.guide-editor *{color: #333;}
+.guide-editor h1,
+.guide-editor h2,
+.guide-editor h3,
+.guide-editor h4,
+.guide-editor h5,
+.guide-editor h6
+{
+	font-weight: normal;
+	line-height: 1.2;
+}
+.guide-editor h1 {
+    display: block;
+    font-size: 2em;
+    margin-block-start: 0.67em;
+    margin-block-end: 0.67em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor h2 {
+    display: block;
+    font-size: 1.5em;
+    margin-block-start: 0.83em;
+    margin-block-end: 0.83em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor h3 {
+    display: block;
+    font-size: 1.17em;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor h4 {
+    display: block;
+    margin-block-start: 1.33em;
+    margin-block-end: 1.33em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor h5 {
+    display: block;
+    font-size: 0.83em;
+    margin-block-start: 1.67em;
+    margin-block-end: 1.67em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor h6 {
+    display: block;
+    font-size: 0.67em;
+    margin-block-start: 2.33em;
+    margin-block-end: 2.33em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    font-weight: bold;
+}
+.guide-editor ul {
+    display: block;
+    list-style-type: disc;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    padding-inline-start: 40px;
+}
+.guide-editor ol {
+    display: block;
+    list-style-type: decimal;
+    margin-block-start: 1em;
+    margin-block-end: 1em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+    padding-inline-start: 40px;
+}
+.guide-editor li {
+    display: list-item;
+    text-align: -webkit-match-parent;
+}
+.guide-editor ul li {
+    list-style: disc;
+}
+.guide-editor ol li {
+    list-style: decimal;
+}
+.guide-editor em {
+    font-style: italic;
+}
+.guide-editor strong {
+    font-weight: bold;
+}
+.guide-editor hr {
+    display: block;
+    unicode-bidi: isolate;
+    margin-block-start: 0.5em;
+    margin-block-end: 0.5em;
+    margin-inline-start: auto;
+    margin-inline-end: auto;
+    overflow: hidden;
+    border-style: inset;
+    border-width: 1px;
+}
+.guide-editor table {
+    border-collapse: collapse;
+    border-spacing: 0;
+    width: 100%;
+}
+.guide-editor blockquote
+{
+    font-style: italic;
+    font-family: Georgia, Times, "Times New Roman", serif;
+    padding: 2px 0;
+    border-style: solid;
+    border-color: #ccc;
+    border-width: 0;
+}
+.guide-editor .cke_contents_ltr blockquote
+{
+    padding-left: 20px;
+    padding-right: 8px;
+    border-left-width: 5px;
+}
+.guide-editor .cke_contents_rtl blockquote
+{
+    padding-left: 8px;
+    padding-right: 20px;
+    border-right-width: 5px;
+}
+.guide-editor a
+{
+    color: #0782C1;
+}
+.guide-editor ol,.guide-editor ul,.guide-editor dl
+{
+    /* IE7: reset rtl list margin. (#7334) */
+    *margin-right: 0px;
+    /* preserved spaces for list items with text direction other than the list.    (#6249,#8049)*/
+    padding: 0 40px;
+}
+.guide-editor h1,.guide-editor h2,.guide-editor h3,.guide-editor h4,.guide-editor h5,.guide-editor h6
+{
+    font-weight: normal;
+    line-height: 1.2em;
+}
+.guide-editor hr
+{
+    border: 0px;
+    border-top: 1px solid #ccc;
+}
+.guide-editor img.right
+{
+    border: 1px solid #ccc;
+    float: right;
+    margin-left: 15px;
+    padding: 5px;
+}
+.guide-editor img.left
+{
+    border: 1px solid #ccc;
+    float: left;
+    margin-right: 15px;
+    padding: 5px;
+}
+.guide-editor pre
+{
+    white-space: pre-wrap; /* CSS 2.1 */
+    word-wrap: break-word; /* IE7 */
+}
+.guide-editor .marker
+{
+    background-color: Yellow;
+}
+.guide-editor span[lang]
+{
+   font-style: italic;
+}
+.guide-editor figure
+{
+    text-align: center;
+    border: solid 1px #ccc;
+    border-radius: 2px;
+    background: rgba(0,0,0,0.05);
+    padding: 10px;
+    margin: 10px 20px;
+    display: block; /* For IE8 */
+}
+.guide-editor figure figcaption
+{
+    text-align: center;
+    display: block; /* For IE8 */
+}
+
+.guide-editor a > img {
+	padding: 1px;
+	margin: 1px;
+	border: none;
+	outline: 1px solid #0782C1;
+}
+
+/* Widget Styles */
+.guide-editor .code-featured
+{
+	border: 5px solid red;
+}
+
+.guide-editor .math-featured
+{
+	padding: 20px;
+	box-shadow: 0 0 2px rgba(200, 0, 0, 1);
+	background-color: rgba(255, 0, 0, 0.05);
+	margin: 10px;
+}
+
+.guide-editor .image-clean
+{
+	border: 0;
+	background: none;
+	padding: 0;
+}
+
+.guide-editor .image-clean > figcaption
+{
+	font-size: .9em;
+	text-align: right;
+}
+
+.guide-editor .image-grayscale
+{
+	background-color: white;
+	color: #666;
+}
+
+.guide-editor .image-grayscale img, img.image-grayscale
+{
+	filter: grayscale(100%);
+}
+
+.guide-editor .embed-240p
+{
+	max-width: 426px;
+	max-height: 240px;
+	margin:0 auto;
+}
+
+.guide-editor .embed-360p
+{
+	max-width: 640px;
+	max-height: 360px;
+	margin:0 auto;
+}
+
+.guide-editor .embed-480p
+{
+	max-width: 854px;
+	max-height: 480px;
+	margin:0 auto;
+}
+
+.guide-editor .embed-720p
+{
+	max-width: 1280px;
+	max-height: 720px;
+	margin:0 auto;
+}
+
+.guide-editor .embed-1080p
+{
+	max-width: 1920px;
+	max-height: 1080px;
+	margin:0 auto;
+}
+
+/* 220829 이미지 최대크기 제한 */
+.guide-editor img {
+    max-width: 100%;
+    height: auto;
+}

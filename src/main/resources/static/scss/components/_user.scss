@@ -1,0 +1,69 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.user {
+    height: 40px;
+
+    .user-btn {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        padding: 0 8px 0 6px;
+        gap: 8px;
+        background: $primary; 
+        border-radius: 4px;
+        color: $white;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    &_thumbnail {
+        position: relative;
+        display: inline-flex;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+
+        img {
+            border-radius: 50%;
+        }
+    }
+
+    &_name {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
+    }
+
+    &-state {
+        position: absolute;
+        bottom: 2px;
+        right: 2px;
+        width: 10px;
+        height: 10px;
+        border: 1px solid $whitef2;
+        border-radius: 50%;
+        transform: translate(50%, 50%);
+
+        &.online {
+            background: $online;
+        }
+
+        &.offline {
+            background: $offline;
+        }
+
+        &.home {
+            background: $home;
+        }
+
+        &.leave {
+            background: $leave;
+        }
+
+        &.eating {
+            background: $point;
+        }
+    }
+}

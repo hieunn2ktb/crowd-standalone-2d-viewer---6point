@@ -1,0 +1,159 @@
+@use '../helpers/variable' as *;
+
+// 웹 접근성을 고려하여 텍스트 숨기기
+@mixin blind {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+}
+
+// 텍스트 말줄임표 처리
+@mixin ellipsis($line) {
+    @if ($line == 0) {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    } @else if ($line) {
+        display: -webkit-box;
+        -webkit-line-clamp: $line;
+        -webkit-box-orient: vertical;
+        word-break: break-word;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+}
+
+// 수직중앙정렬 
+@mixin verticalCenter {
+    display: flex;
+    align-items: center;
+    height: 100%;
+}
+
+// inner
+@mixin inner {
+    max-width: 1440px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 32px;
+}
+
+@mixin contentsInner {
+    width: 100%;
+    margin: 0 auto;
+    padding: 0 16px;
+}
+
+// sectionHeader component
+@mixin sectionHeader {
+    .section-header {
+        @include inner;
+        display: flex;
+        align-items: center;
+        padding: 64px 32px 48px;
+        font-size: 24px;
+
+        &-left, &-right {
+            @include verticalCenter;
+        }
+
+        &-right {
+            margin-left: auto;
+        }
+    }
+}
+
+// 타이틀
+@mixin title {
+    display: inline-flex;
+    align-items: center;
+    color: $black19;
+    text-transform: uppercase;
+}
+
+
+@mixin btnStyle($size, $radius: 0) {
+    min-width: 0;
+    width: $size;
+    height: $size;
+    padding: 0;
+
+    @if $radius != 0 {
+        border-radius: $radius;
+    }
+}
+
+@mixin defaultBtn($bgColor, $bdColor, $hoverColor) {
+    position: relative;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    flex-shrink: 0;
+    border-radius: 32px;
+    background-image: $bgColor;
+    text-transform: uppercase;
+    color: $grayLighter;
+    font-size: $fsz-small;
+    z-index: 1;
+    box-shadow: 0px 6px 6px 0px rgba(0, 0, 0, 0.16);
+
+    &[disabled]{
+        opacity: 0.3;
+        pointer-events: none;
+    }
+    
+    &::before {
+        position: absolute;
+        content: '';
+        top: 50%;
+        left: 50%;
+        width: calc(100% - 8px);
+        height: calc(100% - 8px);
+        border: 1px solid $bdColor;
+        border-radius: 32px;
+        transform: translate(-50%, -50%);
+        z-index: -1;
+    }
+
+    &:hover::before {
+        background-color: $hoverColor;
+        transition: background-color 0.3s;
+    }
+}
+
+@mixin iconBtn($width, $height) {
+    width: $width;
+    height: $height;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 16px;
+}
+
+@mixin scrollbars($size, $border, $foreground-color, $background-color: mix($foreground-color, black,  50%)) {
+    // For Google Chrome
+    &::-webkit-scrollbar {
+        width:  $size;
+        height: $size;
+        border-radius : $border;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: $foreground-color;
+        border-radius : $border;
+        width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: $background-color;
+        border-radius : $border;
+    }
+
+    // For Internet Explorer
+    & {
+        scrollbar-face-color: $foreground-color;
+        scrollbar-track-color: $background-color;
+    }
+}

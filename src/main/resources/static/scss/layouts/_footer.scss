@@ -1,0 +1,22 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.footer {
+    height: 72px;
+    padding: 0 20px;
+    border-top: $borderLight;
+    background: $gray;
+    &-left {
+        margin-right: auto;
+    }
+    &-right {
+        display: inline-flex;
+        margin-left: auto;
+    }
+    .inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 100%;
+    }
+}

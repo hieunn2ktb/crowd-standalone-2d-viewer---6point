@@ -1,0 +1,71 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.table-list {
+    width: 100%;
+    color: $grayLight;
+
+    th {
+        background: #5b5b5b;
+        text-transform: uppercase;
+    }
+    td {
+        background: #454545;
+    }
+    
+    th,td {
+        height: 40px;
+        padding: 0 12px;
+        border: 1px solid #646464;
+        text-align: center;
+
+        &:first-child {
+            border-left: none;
+        }
+        &:last-child {
+            border-right: none;
+        }
+    }
+}
+
+table {
+    width: 100%;
+    font-size: $fsz-small;
+}
+
+
+.table-header {
+    padding: 6px 0 14px;
+    display: flex;
+    align-items: center;
+
+    &-left {
+        margin-right: auto;
+    }
+    &-right {
+        margin-left: auto;
+    }
+}
+
+.table-title {
+    position: relative;
+    color: $primary;
+    font-size: $fsz-small;
+    padding-left: 20px;
+
+    &::before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        top: calc(50% + 1px);
+        width: 4px;
+        height: 4px;
+        background: $primary;
+        border-radius: 50%;
+        transform: translateY(-50%);
+    }
+}
+
+.table-wrap {
+    margin-bottom: 24px;
+}

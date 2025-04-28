@@ -1,0 +1,31 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.tooltip {
+    position: relative;
+    
+    &::after {
+        content: attr(data-tooltip);
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        position: absolute;
+        top: calc(50% + 4px);
+        left: 50%;
+        width: 60px;
+        height: 24px;
+        padding: 4px 8px;
+        background: $gray67;
+        border-radius: 3px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+        color: $white;
+        font-size: 12px;
+        font-weight: 400;
+        transform: translateX(-50%) scale(0);
+    }
+
+    &:hover::after {
+        top: calc(100% + 4px);
+        transform: translateX(-50%) scale(1);
+    }
+}

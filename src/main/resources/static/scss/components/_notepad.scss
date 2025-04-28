@@ -1,0 +1,11 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.notepad {
+    white-space: pre-wrap;
+    
+    img {
+        display: inline-block;
+        max-width: 100%;
+    }
+}

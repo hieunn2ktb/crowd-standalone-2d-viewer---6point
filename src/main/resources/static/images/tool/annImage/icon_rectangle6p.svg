@@ -1,0 +1,44 @@
+<svg id="레이어_1" data-name="레이어 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 84">
+	<defs>
+		<style>	
+			.cls-1{fill:#252727;}
+			.cls-2,.cls-5{fill:none;stroke-linecap:round;stroke-linejoin:round;}
+			.cls-2{stroke:#2bb6a8;}
+			.cls-3{fill:#2bb6a8;}
+			.cls-4{fill:none;}
+			.cls-5{stroke:#898989;}
+			.cls-6{fill:#898989;}
+		</style>
+	</defs>
+	<rect class="cls-1" y="56" width="28" height="28" rx="2"/>
+	<rect class="cls-2" x="5" y="65" width="9" height="14"/>
+	<rect class="cls-4" y="28" width="28" height="28" rx="2"/>
+	<rect class="cls-2" x="5" y="37" width="9" height="14"/>
+	<rect class="cls-4" width="28" height="28" rx="2"/>
+	<rect class="cls-5" x="5" y="9" width="9" height="14"/>
+	
+	<circle class="cls-6" cx="5.2"  cy="9.1" r="2.4"/>
+	<circle class="cls-6" cx="13.8" cy="9.1" r="2.4"/>
+	<circle class="cls-6" cx="5.2"  cy="22.9" r="2.4"/>
+	<circle class="cls-6" cx="13.8" cy="22.9" r="2.4"/>
+	<circle class="cls-6" cx="22.8" cy="4.1" r="2.4"/>
+	<circle class="cls-6" cx="22.8" cy="17.9" r="2.4"/>
+	<polyline class="cls-5" points="13.8,9.1 22.8,4.1 22.8,17.9 13.8,22.9"/>
+	
+	<circle class="cls-3" cx="5.2"  cy="37.1" r="2.4"/>
+	<circle class="cls-3" cx="13.8" cy="37.1" r="2.4"/>
+	<circle class="cls-3" cx="5.2"  cy="50.9" r="2.4"/>
+	<circle class="cls-3" cx="13.8" cy="50.9" r="2.4"/>
+	<circle class="cls-3" cx="22.8" cy="32.1" r="2.4"/>
+	<circle class="cls-3" cx="22.8" cy="45.9" r="2.4"/>
+	<polyline class="cls-2" points="13.8,37.1 22.8,32.1 22.8,45.9 13.8,50.9"/>
+	
+	<circle class="cls-3" cx="5.2"  cy="65.1" r="2.4"/>
+	<circle class="cls-3" cx="13.8" cy="65.1" r="2.4"/>
+	<circle class="cls-3" cx="5.2"  cy="78.9" r="2.4"/>
+	<circle class="cls-3" cx="13.8" cy="78.9" r="2.4"/>
+	<circle class="cls-3" cx="22.8" cy="60.1" r="2.4"/>
+	<circle class="cls-3" cx="22.8" cy="73.9" r="2.4"/>
+	<polyline class="cls-2" points="13.8,65.1 22.8,60.1 22.8,73.9 13.8,78.9"/>
+	
+</svg>

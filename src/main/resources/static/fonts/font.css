@@ -1,0 +1,31 @@
+@charset "UTF-8";
+
+@font-face {
+  font-family: "Noto Sans Korean";
+  font-weight: 300;
+  font-style: normal;
+  src: url("../fonts/NotoSans-DemiLight.eot?") format("eot"),
+  url("../fonts/NotoSans-DemiLight.otf") format("opentype"),
+  url("../fonts/NotoSans-DemiLight.woff") format("woff"),
+  url("../fonts/NotoSans-DemiLight.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans Korean";
+  font-weight: 400;
+  font-style: normal;
+  src: url("../fonts/NotoSans-Regular.eot?") format("eot"),
+  url("../fonts/NotoSans-Regular.otf") format("opentype"),
+  url("../fonts/NotoSans-Regular.woff") format("woff"),
+  url("../fonts/NotoSans-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Noto Sans Korean";
+  font-weight: 500;
+  font-style: normal;
+  src: url("../fonts/NotoSans-Medium.eot?") format("eot"),
+  url("../fonts/NotoSans-Medium.otf") format("opentype"),
+  url("../fonts/NotoSans-Medium.woff") format("woff"),
+  url("../fonts/NotoSans-Medium.woff2") format("woff2");
+}

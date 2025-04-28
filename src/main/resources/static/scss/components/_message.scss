@@ -1,0 +1,226 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.message {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 1;
+    width: 100%;
+    height: 100%;
+
+    &_item-box {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        height: calc(100% - 57px);
+        padding: 16px;
+        overflow-y: auto;
+
+        &::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        > div:first-child {
+            margin-top: 0;
+        }
+    }
+
+    &_item {
+        position: relative;
+        display: inline-flex;
+        flex-direction: column;
+        margin-top: 16px;
+
+        > div {
+            display: inline-flex;
+            padding: 0 8px;
+            gap: 16px;
+            border-radius: 4px;
+
+            &:hover {
+                background: $whitef2;
+            }
+        }
+    }
+
+    .user-icon {
+        position: relative;
+        top: 4px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        background: $primary-bright;
+        border-radius: 50%;
+        font-size: 18px;
+        font-weight: bold;
+        overflow: hidden;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    .user-message {
+        display: inline-flex;
+        flex-direction: column;
+        flex-shrink: 1;
+        font-size: 16px;
+    }
+
+    .sender {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+
+        &_name {
+            font-weight: bold;
+        }
+    }
+
+    .timestamp {
+        flex-shrink: 0;
+        min-width: 40px;
+        font-size: 14px;
+    }
+
+    .text-block {
+        white-space: pre-line;
+        word-break: break-all;
+    }
+
+    // 사용자가 바뀌지않고 연속메시지
+    .continue {
+        margin-top: 0;
+
+        &:hover .timestamp {
+            visibility: visible;
+        }
+
+        .timestamp {
+            visibility: hidden;
+        }
+    }
+
+    // 메시지에 대한 댓글
+    .reply {
+
+        &::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 24px;
+            width: 24px;
+            height: 24px;
+            background: url(../images/ic_reply24.png) no-repeat center;
+        }
+
+        > div:first-child {
+            padding-top: 20px;
+        }
+
+        &_user-icon {
+            width: 20px;
+            height: 20px;
+            background: $primary-bright;
+            border-radius: 50%;
+            overflow: hidden;
+            
+            img {
+                object-fit: cover;
+            }
+        }
+
+        &_user-name {
+            flex-shrink: 0;
+            font-weight: bold;
+
+            &:hover {
+                text-decoration: underline;
+                text-underline-position: under;
+            }
+        }
+
+        &_item {
+            position: absolute;
+            top: 0;
+            left: 64px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 14px;
+
+            p {
+                flex-shrink: 1;
+                @include ellipsis(1);
+            }
+        }
+    }
+
+    .timeline,
+    .statusline {
+        position: relative;
+        display: inline-flex;
+        width: 100%;
+        height: 1px;
+        margin-top: 16px;
+        padding: 12px 0;
+        user-select: none;
+
+        &::before {
+            content: '';
+            width: 100%;
+            height: 1px;
+            background: $border;
+        }
+
+        span {
+            position: absolute;
+            z-index: 1;
+            top: 50%;
+            left: 50%;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            height: 24px;
+            padding: 0 8px;
+            background: $white;
+            border-radius: 12px;
+            font-size: 14px;
+            transform: translate(-50%, -50%);
+        }
+    }
+
+    &_send-area {
+        position: absolute;
+        z-index: 2;
+        bottom: 0;
+        left: 0;
+        display: flex;
+        flex-shrink: 0;
+        width: 100%;
+        border-top: 1px solid $border;
+
+        .textarea-box {
+
+            textarea {
+                max-height: 200px;
+                height: auto;
+                padding-right: 56px;
+                &::-webkit-scrollbar {width: 4px;}
+            }
+
+            .btn-send {
+                position: absolute;
+                top: 8px;
+                right: 8px;
+            }
+        }
+    }
+}

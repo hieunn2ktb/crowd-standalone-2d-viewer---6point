@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<taglib xmlns="http://Java.sun.com/xml/ns/j2ee"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://java.sun.com/xml/ns/j2ee /web-jsptaglibrary_2_0.xsd"
+    version="2.0">
+
+    <description>AI.Studio Custom Tag</description>
+    <tlib-version>1.0</tlib-version>
+    <short-name>aistudio</short-name>
+    <uri></uri>
+    <tag>
+        <name>setPageEnveriment</name>
+        <tag-class>aistudio.crowd.common.config.web.taglibs.SetPageEnveriment</tag-class>
+        <body-content>scriptless</body-content>
+    </tag>
+
+    <tag>
+        <name>setCode</name>
+        <tag-class>aistudio.crowd.common.config.web.taglibs.SetCodeTag</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>attrId</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>code</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>ref1</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>ref2</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>ref3</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>ref4</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>ref5</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>excludeCds</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+
+    <tag>
+        <name>authButton</name>
+        <tag-class>aistudio.crowd.common.config.web.taglibs.AuthButtonTag</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>menuId</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>functionId</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>objId</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>objText</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>objClass</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>objStyle</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+        <attribute>
+            <name>objExtra</name>
+            <required>false</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.String</type>
+        </attribute>
+    </tag>
+
+    <tag>
+        <name>jsonOut</name>
+        <tag-class>aistudio.crowd.common.config.web.taglibs.JsonOutTag</tag-class>
+        <body-content>empty</body-content>
+        <attribute>
+            <name>item</name>
+            <required>true</required>
+            <rtexprvalue>true</rtexprvalue>
+            <type>java.lang.Object</type>
+        </attribute>
+    </tag>
+
+    <function>
+        <name>getCodeName</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String getCodeName(java.lang.String, java.lang.String)</function-signature>
+    </function>
+
+    <function>
+        <name>fileSizeFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String fileSizeFormat(java.lang.String)</function-signature>
+    </function>
+
+    <function>
+        <name>phoneFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String phoneFormat(java.lang.String)</function-signature>
+    </function>
+
+    <function>
+        <name>viewTaskNumberFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String viewTaskNumberFormat(java.lang.Integer)</function-signature>
+    </function>
+
+    <function>
+        <name>viewProjectNumberFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String viewProjectNumberFormat(java.lang.Integer)</function-signature>
+    </function>
+
+    <function>
+        <name>viewProjectGroupNumberFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String viewProjectGroupNumberFormat(java.lang.Integer)</function-signature>
+    </function>
+
+    <function>
+        <name>viewWorksetNumberFormat</name>
+        <function-class>aistudio.crowd.common.config.web.taglibs.CustomFunctionTag</function-class>
+        <function-signature>java.lang.String viewWorksetNumberFormat(java.lang.Integer)</function-signature>
+    </function>
+</taglib>

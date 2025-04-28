@@ -1,0 +1,162 @@
+#pt_canvasInput {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 999;
+}
+
+
+
+.paint_buttons button {
+    font-size: 24px;
+    margin-right: 10px;
+    background-color: #d5ffff;
+    border: none;
+    border-radius: 3px;
+    color: rgb(29, 29, 29);
+    cursor: pointer;
+}
+.paint_buttons button:hover {
+    background-color: #9dfcfc;
+}
+.paint_buttons button.on {
+    background-color: #00b7b7;
+    color: #fff;
+}
+
+.paint_cursor_brush {
+    position: absolute;
+    border-radius: 50%;
+    z-index: 1001;
+}
+.paint_event_handler {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1002;
+}
+#popup_paint_tool {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background-color: #4c4c4c;
+    border-radius: 5px;
+    padding: 10px;
+    border: 3px solid #adadad;
+    z-index: 1010;
+}
+
+#popup_paint_tool .popup_paint_header {
+    position: relative;
+    display: block;
+    font-size: 14px;
+    margin-bottom: 10px;
+    border-bottom: 1px solid #6a6a6a;
+    color: #d1d1d1;
+    cursor: move;
+    padding-bottom: 5px;
+}
+
+#popup_paint_tool .paint_buttons {
+    position: relative;
+    display: block;
+}
+
+#pt_canvasOutput circle {
+    stroke: #00b7b7;
+
+}
+
+#popup_paint_tool .ui-slider-horizontal {
+    height: 5px;
+}
+
+#popup_paint_tool .ui-slider-handle {
+    width: 12px;
+    height: 12px;
+}
+#popup_paint_tool .ui-slider-handle::selection {
+    border: none;
+}
+
+#popup_paint_tool .colorPicker {
+    width: 20px;
+    height: 20px;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
+    display: none;
+}
+#popup_paint_tool .minicolors {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    float: right;
+}
+#popup_paint_tool .minicolors-swatch {
+    width: 22px;
+    height: 22px;
+    top: 0px;
+    left: 0;
+    cursor: pointer;
+    border-radius: 3px;
+    border: 1px solid #b5b5b5;
+}
+
+.popup_paint_header .material-icons {
+    font-size: 14px;
+    position: absolute;
+    right: 0;
+    border: 1px solid #788700;
+    border-radius: 3px;
+}
+
+#popup_paint_tool .ui-widget.ui-widget-content {
+    border: 1px solid #d1d1d1;
+    background-color: #6a6a6a;
+}
+
+#popup_paint_tool .ui-slider-handle {
+    background: #4e4e4e;
+}
+#popup_paint_tool .paint_sliders {
+    width: calc(100% - 50px) !important;
+    margin-left: 50px;
+    margin-top: 15px;
+}
+#popup_paint_tool .paint_sliders:before {
+    font-family: "Material Icons";
+    left: -50px;
+    position: absolute;
+    top: -5px;
+}
+#popup_paint_tool .paint_size_slider:before {
+    content: "\e3e2";
+}
+#popup_paint_tool .paint_interval_point:before {
+    content: "\e664";
+}
+#popup_paint_tool .paint_opacity:before {
+    content: "\e3e9";
+}
+
+input.paintSliderValue {
+    width: 24px;
+    height: 14px;
+    font-size: 12px;
+    top: -4px;
+    position: absolute;
+    left: -29px;
+    background-color: #4a4a4a;
+    border: none;
+}
+/* Chrome, Safari, Edge, Opera */
+input.paintSliderValue::-webkit-outer-spin-button,
+input.paintSliderValue::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox */
+input.paintSliderValue[type=number] {
+    -moz-appearance: textfield;
+}

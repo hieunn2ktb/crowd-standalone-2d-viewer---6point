@@ -1,0 +1,67 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+// 버튼들을 감싸는 박스
+.btn-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.btn {
+    &-minimize {
+        background-image: url("/images/icon_minimize.svg");
+        @include iconBtn(32px, 32px);
+    }
+    &-maximize {
+        background-image: url("/images/icon_maximize.svg");
+        @include iconBtn(32px, 32px);
+    }
+    &-close {
+        background-image: url("/images/icon_x.svg");
+        @include iconBtn(32px, 32px);
+    }
+    &-delete {
+        background-image: url("/images/icon_x.svg");
+        background-color: $grayDark;
+        border-radius: 4px;
+        @include iconBtn(20px, 20px);
+    }
+
+    &-guide {
+        width: 32px;
+        height: 32px;
+        @include defaultBtn($primaryGradient, $primary, rgba(43, 74, 67, 0.6));
+
+        &::after {
+            content: '';
+            width: 100%;
+            height: 100%;
+            background-image: url("/images/icon_questionMark.svg");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    }
+
+    &-point {
+        height: 40px;
+        padding: 0 20px;
+        @include defaultBtn($primaryGradient, $primary, rgba(43, 74, 67, 0.6));
+    }
+    &-base {
+        height: 40px;
+        padding: 0 20px;
+        @include defaultBtn($darkGradient, #858585, rgba(57, 57, 57, 0.6));
+    }
+
+    &-l-point {
+        width: 160px;
+        height: 48px;
+        @include defaultBtn($primaryGradient, $primary, rgba(43, 74, 67, 0.6));
+    }
+    &-l-base {
+        width: 160px;
+        height: 48px;
+        @include defaultBtn($darkGradient, #858585, rgba(57, 57, 57, 0.6));
+    }
+}
+

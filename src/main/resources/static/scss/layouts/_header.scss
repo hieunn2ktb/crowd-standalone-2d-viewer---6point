@@ -1,0 +1,26 @@
+@use '../helpers/variable' as *;
+@use '../helpers/mixin' as *;
+
+.header {
+    height: 64px;
+    padding: 0 20px;
+    background: $grayDark;
+    border-bottom: $borderDark;
+    color: $grayLighter;
+    
+    &-left {
+        margin-right: auto;
+    }
+    
+    &-right {
+        display: inline-flex;
+        margin-left: auto;
+    }
+    
+    .inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 100%;
+    }
+}
