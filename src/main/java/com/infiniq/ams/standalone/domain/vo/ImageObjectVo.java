@@ -33,6 +33,7 @@ public class ImageObjectVo implements Comparable<ImageObjectVo> {
     private String    modifyId;
     private String    groupId;
     private String    keypointNumber;
+    private String    keypointId;
 
     private String classNumber;
     private String classId;

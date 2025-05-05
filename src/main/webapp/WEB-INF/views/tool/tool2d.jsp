@@ -522,6 +522,63 @@
                 page.data.task.keypointVoList = [];
                 page.data.task.keypointMap = new HashMap();
                 page.data.magicKeypointNumber = null;
+                //keypoints
+
+                // Khởi tạo keypoint template giả
+                const dummyKeypointId = "dummyKeypointId";
+
+                // 1. Tạo keypointVoList nếu chưa có
+                if (!page.data.task.keypointVoList) {
+                    page.data.task.keypointVoList = [];
+                }
+
+                // 2. Tạo keypointMap nếu chưa có
+                if (!page.data.task.keypointMap) {
+                    page.data.task.keypointMap = new HashMap();
+                }
+
+                // 3. Tạo KeypointVo giả
+                let dummyKeypointVo = {
+                    keypointId: dummyKeypointId,
+                    keypointName: "DummyKeypoint",
+                    pointLength: 8,
+                    position: [],
+                    relationship: [],
+                    radiusYn: "N",
+                    roi: [],
+                    posMap: null,
+                    defaultRadius: 10,
+                    magicYn: "N"
+                };
+
+                // 4. Gán position giả (8 điểm, id từ 1 -> 8)
+                for (let i = 1; i <= 8; i++) {
+                    dummyKeypointVo.position.push([
+                        0, 0, // x, y mặc định là (0, 0)
+                        i,   // index: 1..8
+                        2,   // visibility: default = 2
+                        "p" + i, // name: p1, p2, ...
+                        (i-1).toString(), // order: "0", "1", ...
+                        "#ff0000" // color: đỏ cho dễ nhìn
+                    ]);
+                }
+
+                // 5. Gán relationship giả (nối điểm liên tiếp 1-2, 2-3,...)
+                for (let i = 1; i < 8; i++) {
+                    dummyKeypointVo.relationship.push([
+                        i.toString(),
+                        (i+1).toString(),
+                        i // relationship id
+                    ]);
+                }
+
+                // 6. Add vào hệ thống
+                page.data.task.keypointVoList.push(dummyKeypointVo);
+                page.data.task.keypointMap.put(dummyKeypointId, dummyKeypointVo);
+
+                // 7. Gán dummyKeypointId làm objectKeypointNumber để đảm bảo vẽ đúng
+                page.data.objectKeypointNumber = dummyKeypointId;
+                console.log("✅ Dummy KeypointVo created successfully");
                 <%--for (let i = 0; i < data.keypointVoList.length; i++) {--%>
                 <%--    let kp = data.keypointVoList[i];--%>
                 <%--    log.info(kp, "keypoint");--%>

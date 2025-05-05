@@ -49,6 +49,9 @@ public class TaskVo extends AbstractPagingRequestVo  {
     private Integer minPixelX;
     private Integer minPixelY;
 
+    private KeypointVo keypoint;
+    private List<KeypointVo> keypointVoList;
+
     private String permissionCode;
     private String permissionName;
     private List<String> imageServerNams;

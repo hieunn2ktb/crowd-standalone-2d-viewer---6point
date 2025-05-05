@@ -2,6 +2,7 @@ package com.infiniq.ams.standalone.domain.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.JsonArray;
 import com.infiniq.ams.standalone.domain.vo.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -124,6 +125,7 @@ public class WorkDataService {
                 int objectOrder = imageObjectOrderMap.merge(imageIndex, 1, Integer::sum);
 
                 ImageObjectVo objectVo = buildImageObjectVo(task, imageVo, ann, classMap, objectOrder);
+
                 imageObjectMap.computeIfAbsent(imageIndex, k -> new ArrayList<>()).add(objectVo);
                 this.totalObj ++;
             }
@@ -174,66 +176,6 @@ public class WorkDataService {
     }
 
 
-//    public List<ReviewImageVo> getWorkedListCoco(TaskVo task, String fileName) throws Exception {
-//        JSONObject cocoJSON = getCocoJsonObject(fileName);
-//        JSONArray imageArray = cocoJSON.optJSONArray("images");
-//        JSONArray annotationArray = cocoJSON.optJSONArray("annotations");
-//        JSONArray classArray = cocoJSON.optJSONArray("categories");
-//
-//        if (classArray == null || imageArray == null || annotationArray == null) {
-//            throw new IllegalArgumentException("Invalid COCO JSON structure: missing categories, images or annotations");
-//        }
-//
-//        Map<Integer, String> classMap = extractClassMap(classArray);
-//        Map<Integer, ReviewImageVo> imageMap = new HashMap<>();
-//        Map<Integer, List<ImageObjectVo>> imageObjectMap = new HashMap<>();
-//        Map<Integer, Integer> imageObjectOrderMap = new HashMap<>();
-//
-//        // Step 1: Duyệt theo thứ tự ảnh trong folder và tạo ReviewImageVo theo thứ tự
-//        List<String> imagePaths = getImagePaths(rootPath + File.separator + fileName);
-//        List<ReviewImageVo> orderedImageList = new ArrayList<>();
-//
-//        for (String path : imagePaths) {
-//            String nameOnly = new File(path).getName();
-//            Integer imageId = findImageIdByFileName(imageArray, nameOnly);
-//            if (imageId == null) continue;
-//
-//            ReviewImageVo imageVo = buildReviewImageVo(task, path, nameOnly);
-//            imageMap.put(imageId, imageVo);
-//            orderedImageList.add(imageVo);
-//        }
-//
-//        // Step 2: Xử lý annotation gán vào imageObjectMap
-//        for (int i = 0; i < annotationArray.length(); i++) {
-//            JSONObject ann = annotationArray.getJSONObject(i);
-//            int imageId = ann.getInt("image_id");
-//            ReviewImageVo imageVo = imageMap.get(imageId);
-//            if (imageVo == null) continue;
-//
-//            // image order
-//            int objectOrder = imageObjectOrderMap.getOrDefault(imageId, 0) + 1;
-//            imageObjectOrderMap.put(imageId, objectOrder);
-//
-//            ImageObjectVo objectVo = buildImageObjectVo(task, imageVo, ann, classMap, objectOrder);
-//            imageObjectMap.computeIfAbsent(imageId, k -> new ArrayList<>()).add(objectVo);
-//        }
-//
-//        // Step 3: Gán objectList và tagList vào từng ReviewImageVo theo imageId
-//        for (ReviewImageVo imageVo : orderedImageList) {
-//            List<ImageObjectVo> objList = imageObjectMap.getOrDefault(findImageIdByFileName(imageArray, imageVo.getFileName()), new ArrayList<>());
-//            imageVo.setObjectList(objList);
-//
-//            List<ImageObjectTagVo> allTags = objList.stream()
-//                    .filter(obj -> obj.getTagList() != null)
-//                    .flatMap(obj -> obj.getTagList().stream())
-//                    .collect(Collectors.toList());
-//
-//            imageVo.setTagList(allTags);
-//        }
-//
-//        return orderedImageList;
-//    }
-
     private Map<String, Integer> extractClassMap(JSONArray jsonArray) {
         Map<String, Integer> classMap = new HashMap<>();
         Set<String> classSet = new HashSet<>();
@@ -263,26 +205,6 @@ public class WorkDataService {
         return classMap;
     }
 
-    private Map<Integer, String> extractClassMapCoco(JSONArray classArray) {
-        Map<Integer, String> classMap = new HashMap<>();
-        for (int i = 0; i < classArray.length(); i++) {
-            JSONObject cls = classArray.getJSONObject(i);
-            classMap.put(cls.getInt("id"), cls.getString("name"));
-        }
-        return classMap;
-    }
-
-    private Integer findImageIdByFileName(JSONArray imageArray, String nameOnly) {
-        for (int i = 0; i < imageArray.length(); i++) {
-            JSONObject img = imageArray.getJSONObject(i);
-            String cocoFileName = Paths.get(img.getString("file_name")).getFileName().toString();
-            if (cocoFileName.equals(nameOnly)) {
-                return img.getInt("id");
-            }
-        }
-        return null;
-    }
-
     private ReviewImageVo buildReviewImageVo(TaskVo task, String actualPath, String nameOnly) {
         ReviewImageVo imageVo = new ReviewImageVo();
         imageVo.setProjectId(task.getProjectId());
@@ -306,7 +228,7 @@ public class WorkDataService {
                 kp.getDouble("x") != -1 && kp.getDouble("y") != -1;
     }
 
-    private String detectObjectType(JSONObject keypoints) {
+    private String determineObjectType(JSONObject keypoints) {
         // Lấy từng keypoint
         JSONObject kp1 = keypoints.optJSONObject("keypoint1");
         JSONObject kp2 = keypoints.optJSONObject("keypoint2");
@@ -314,17 +236,30 @@ public class WorkDataService {
         JSONObject kp4 = keypoints.optJSONObject("keypoint4");
         JSONObject kp5 = keypoints.optJSONObject("keypoint5");
         JSONObject kp6 = keypoints.optJSONObject("keypoint6");
+        JSONObject kp7 = keypoints.optJSONObject("keypoint7");
+        JSONObject kp8 = keypoints.optJSONObject("keypoint8");
 
         boolean hasSidePoints = isValidKeypoint(kp1) && isValidKeypoint(kp2) && isValidKeypoint(kp3) && isValidKeypoint(kp4);
         boolean hasFront = isValidKeypoint(kp5);
         boolean hasRear = isValidKeypoint(kp6);
 
+        if(hasSidePoints && !hasFront && !hasRear) {
+            return "rect";
+        }
+        if(!hasSidePoints && hasFront && !hasRear) {
+            return "drawCube2DFront";
+        }
+        if(!hasSidePoints && !hasFront && hasRear) {
+            return "drawCube2D";
+        }
         if (hasSidePoints && hasFront && !hasRear) {
             return "drawCube2DFront";
-        }  else if (hasSidePoints && !hasFront && hasRear) {
+        }
+        if (hasSidePoints && !hasFront && hasRear) {
             return "drawCube2D";
-        } else if (!isValidKeypoint(kp1) && !isValidKeypoint(kp2) && !isValidKeypoint(kp3) && !isValidKeypoint(kp4)) {
-            return "rect";
+        }
+        if(kp7 != null && kp8 != null) {
+            return "keypoint";
         }
         return "rect";
     }
@@ -399,48 +334,53 @@ public class WorkDataService {
 
         if(ann.has("attributes")) {
             try {
-
                 JSONObject attrs = ann.getJSONObject("attributes");
                 int outerType = ann.getInt("type");
                 int innerType = attrs.getInt("type");
                 String className = this.utilService.getClassName(outerType, innerType);
-
-                Integer categoryId = classMap.getOrDefault(className, 0);
-                objectVo.setClassId("cls" + categoryId);
+                String classId = findClassIdyClassName(task, className);
+                objectVo.setClassId(classId);
                 objectVo.setClassName(className);
+
                 if (ann.has("box") && ann.has("keypoints")) {
                     JSONObject box = ann.getJSONObject("box");
                     JSONObject keypoints = ann.optJSONObject("keypoints");
                     //object type
-                    String objectType = detectObjectType(keypoints);
+                    String objectType = determineObjectType(keypoints);
                     objectVo.setObjectType(objectType);
 
+                    //object Location
                     String objectLocation = getObjectLocation(box, keypoints, objectType);
                     objectVo.setObjectLocation(objectLocation);
+
+                    //keypoint id (if objectType is keypoint)
+//                    if(objectType.equals("keypoint")) {
+//                        objectVo.setKeypointId();
+//                    }
                 }
 
                 // Tags from attributes comment tag cho đỡ lag
-//                List<ImageObjectTagVo> tagList = new ArrayList<>();
-//                for (String key : attrs.keySet()) {
-//                    Object value = attrs.opt(key);
-//                    if (value == null) continue;
-//
-//                    ImageObjectTagVo tag = new ImageObjectTagVo();
-//                    tag.setProjectId(task.getProjectId());
-//                    tag.setTaskId(task.getTaskId());
-//                    tag.setWorkTicketId(imageVo.getWorkTicketId());
-//                    tag.setObjectId(objectVo.getObjectId());
-//                    tag.setTagName(key);
-//
-//                    String tagValue = value.toString();
-//                    tag.setTagValueName(tagValue);
-//                    tag.setVal(tagValue);
-//                    tag.setColor(getRandomHexColor());
-//                    tag.setTagId(generateTagId());
-//
-//                    tagList.add(tag);
-//                }
-//                objectVo.setTagList(tagList);
+                List<ImageObjectTagVo> tagList = new ArrayList<>();
+                for (String key : attrs.keySet()) {
+                    Object value = attrs.opt(key);
+                    if (value == null || value.equals(0) || (!Objects.equals(key, "truncation") && !Objects.equals(key, "occlusion"))) continue;
+
+                    ImageObjectTagVo tag = new ImageObjectTagVo();
+                    tag.setProjectId(task.getProjectId());
+                    tag.setTaskId(task.getTaskId());
+                    tag.setWorkTicketId(imageVo.getWorkTicketId());
+                    tag.setObjectId(objectVo.getObjectId());
+                    tag.setTagName(key);
+
+                    String tagValue = value.toString();
+                    tag.setTagValueName(tagValue);
+                    tag.setVal(tagValue);
+                    tag.setColor(getRandomHexColor());
+                    tag.setTagId(generateTagId());
+
+                    tagList.add(tag);
+                }
+                objectVo.setTagList(tagList);
 
             } catch (JSONException e) {
                 System.err.println("Missing 'class' in annotation: " + e.getMessage());
@@ -457,13 +397,64 @@ public class WorkDataService {
             double y = box.optDouble("y");
             double w = box.optDouble("width");
             double h = box.optDouble("height");
+
             JSONObject kp1 = keypoints.optJSONObject("keypoint1");
             JSONObject kp2 = keypoints.optJSONObject("keypoint2");
             JSONObject kp3 = keypoints.optJSONObject("keypoint3");
             JSONObject kp4 = keypoints.optJSONObject("keypoint4");
+            JSONObject kp5 = keypoints.optJSONObject("keypoint5");
+            JSONObject kp6 = keypoints.optJSONObject("keypoint6");
+            JSONObject kp7 = keypoints.optJSONObject("keypoint7");
+            JSONObject kp8 = keypoints.optJSONObject("keypoint8");
+
+            //nếu objectType là "keypoint" thì có 8 điểm
+        if (objectType.equals("keypoint")) {
+
+            JSONObject[] keypointsArray = {kp1, kp2, kp3, kp4, kp5, kp6, kp7, kp8};
+
+            int index = 1; // index bắt đầu từ 1
+            int objectOrder = 10; // fixed objectOrder
+
+            for (JSONObject kp : keypointsArray) {
+                if (kp != null) {
+                    double px = kp.optDouble("x", -1);
+                    double py = kp.optDouble("y", -1);
+                    int visibility = 2; // Default visibility nếu không có
+                    JSONArray point = new JSONArray()
+                            .put(px)
+                            .put(py)
+                            .put(index)
+                            .put(visibility)
+                            .put(objectOrder);
+                    objectLocation.put(point);
+                } else {
+                    // Nếu keypoint không tồn tại, điền giá trị mặc định
+                    JSONArray point = new JSONArray()
+                            .put(-1)
+                            .put(-1)
+                            .put(index)
+                            .put(2)
+                            .put(objectOrder);
+                    objectLocation.put(point);
+                }
+                index++;
+            }
+
+            return objectLocation.toString();
+        }
 
             //nếu objectType là "rect", không có tọa độ boxSide
             if(objectType.equals("rect")) {
+                JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
+                JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
+                objectLocation.put(p1);
+                objectLocation.put(p2);
+                return objectLocation.toString();
+            }
+
+            //nếu 4 điểm đầu là (-1,-1) thì không cần lấy tọa độ boxSide
+            if((objectType.equals("drawCube2D") || objectType.equals("drawCube2DFront")) && !isValidKeypoint(kp1)
+                    && !isValidKeypoint(kp2) && !isValidKeypoint(kp3) && !isValidKeypoint(kp4)) {
                 JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
                 JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
                 objectLocation.put(p1);
@@ -523,75 +514,6 @@ public class WorkDataService {
             return objectLocation.toString();
     }
 
-    private ImageObjectVo buildImageObjectVoCoco(TaskVo task, ReviewImageVo imageVo, JSONObject ann, Map<Integer, String> classMap, int objectOrder) {
-        ImageObjectVo objectVo = new ImageObjectVo();
-        objectVo.setObjectId("dobj" + UUID.randomUUID().toString().replace("-", "").substring(0, 14));
-        objectVo.setProjectId(task.getProjectId());
-        objectVo.setTaskId(task.getTaskId());
-        objectVo.setWorkTicketId(imageVo.getWorkTicketId());
-        objectVo.setColor(getRandomHexColor());
-        objectVo.setObjectOrder(objectOrder);
-
-        int categoryId = ann.getInt("category_id");
-        objectVo.setClassId("cls" + categoryId);
-        objectVo.setClassName(classMap.getOrDefault(categoryId, "unknown_class_" + categoryId));
-        objectVo.setObjectType(ann.optString("type", "unknown"));
-
-        // Segmentation
-        if (ann.has("segmentation")) {
-            objectVo.setImgObjectPolygonLocation(ann.getJSONArray("segmentation").toString());
-        }
-
-        // boxSide
-        if (ann.has("boxSide")) {
-            objectVo.setImgObjectBoxLocation(ann.getJSONObject("boxSide").toString());
-        }
-
-        // BBox xử lý thêm objectLocation
-        if (ann.has("bbox")) {
-            JSONArray bbox = ann.getJSONArray("bbox");
-            if (bbox.length() == 4) {
-                double x = bbox.getDouble(0), y = bbox.getDouble(1), w = bbox.getDouble(2), h = bbox.getDouble(3);
-                JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
-                JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
-                JSONArray converted = new JSONArray().put(p1).put(p2);
-
-                //hit
-                if (ann.has("boxSide")) {
-                    converted.put(ann.getJSONObject("boxSide"));
-                }
-                objectVo.setObjectLocation(converted.toString());
-            } else {
-                objectVo.setObjectLocation(bbox.toString());
-            }
-        }
-
-        // Tags
-        List<ImageObjectTagVo> tagList = new ArrayList<>();
-        if (ann.has("attributes") && ann.get("attributes") instanceof JSONArray) {
-            JSONArray attrs = ann.getJSONArray("attributes");
-            for (int j = 0; j < attrs.length(); j++) {
-                JSONObject attr = attrs.getJSONObject(j);
-                for (String key : attr.keySet()) {
-                    ImageObjectTagVo tag = new ImageObjectTagVo();
-                    tag.setProjectId(task.getProjectId());
-                    tag.setTaskId(task.getTaskId());
-                    tag.setWorkTicketId(imageVo.getWorkTicketId());
-                    tag.setObjectId(objectVo.getObjectId());
-                    tag.setTagName(key);
-                    tag.setTagValueName(attr.getString(key));
-                    tag.setVal(attr.getString(key));
-                    tag.setColor(getRandomHexColor());
-                    tag.setTagId("tag" + UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-                    tagList.add(tag);
-                }
-            }
-        }
-        objectVo.setTagList(tagList);
-
-        return objectVo;
-    }
-
     public HashMap<String, Integer> getClassList(TaskVo taskVo, String fileName) throws FileNotFoundException {
         HashMap<String, Integer> classMap = new HashMap<>();
         JSONArray jsonArray = getJsonArray(fileName);
@@ -612,40 +534,6 @@ public class WorkDataService {
                 }
             } catch (JSONException e) {
                 System.err.println("Error processing frame " + i + ": " + e.getMessage());
-            }
-        }
-        return classMap;
-    }
-
-    public HashMap<String,Integer> getClassListCoco (TaskVo taskVo, String fileName) throws FileNotFoundException {
-        HashMap<String,Integer> classMap = new HashMap<>();
-
-        JSONObject jsonObject = getCocoJsonObject(fileName);
-        // Get "annotations" array safely
-        JSONArray annotations;
-        try {
-            annotations = jsonObject.getJSONArray("annotations");
-        } catch (JSONException e) {
-            System.out.println("Error: 'annotations' key not found or is not a valid JSONArray.");
-            return classMap;  // Return empty map if annotations are missing
-        }
-
-        for (Object anno : annotations) {
-            if (!(anno instanceof JSONObject)) continue;
-
-            JSONObject  annoObject = (JSONObject) anno;
-
-            if (!annoObject.has("category_id")) continue;
-
-            // Convert category_id to String
-            String classId = String.valueOf(annoObject.getInt("category_id"));
-
-            for (ClassVo classVo : taskVo.getClassVoList()) {
-                if (classVo.getClassId().equals(classId)) {
-                    // Increment count in classMap
-                    classMap.compute(classVo.getClassName(), (key, value) -> (value == null) ? 1 : value + 1);
-                    break;  // Found the matching class, no need to check further
-                }
             }
         }
         return classMap;
@@ -673,7 +561,6 @@ public class WorkDataService {
         }
 
         JSONArray jsonArray = getJsonArray(fileName);
-        String classId = retrieveClassId(className, jsonArray);
 
         for (TagVo tagVo : classVo.getClassTagList()) {
             String tagName = tagVo.getTagName().equals("side") ? "direction" : tagVo.getTagName();
@@ -703,67 +590,6 @@ public class WorkDataService {
         }
         return classVo;
     }
-
-    // get tag list value for project information
-//    public ClassVo getClassTagListCoco (String className,TaskVo taskVo, String fileName) throws FileNotFoundException {
-//        ClassVo  classVo      = new ClassVo();
-//        classVo.setClassName(className);
-//        classVo.setTotalCnt(taskVo.getTotCnt());
-//        classVo.setTotalObj(taskVo.getTotalObj());
-//        classVo.setTagCnt(taskVo.getTagList().size());
-//        classVo.setClassTagList(taskVo.getTagList());
-//
-//        // hàm này dùng để set giá trị cho tagVo.setTagList() thông qua tagVo.getTagValueList()
-//        for (TagVo tagVo : classVo.getClassTagList()) {
-//            List<TagClassVo> tagClassVoList = new ArrayList<>();
-//            if (tagVo.getTagValueList() != null && tagVo.getTagValueList().size() > 0) {
-//                for (String tagValue : tagVo.getTagValueList()) {
-//                    TagClassVo tagClassVo = new TagClassVo();
-//                    tagClassVo.setTagName(tagValue);
-//                    tagClassVoList.add(tagClassVo);
-//                }
-//            }
-//            tagVo.setTagList(tagClassVoList);
-//        }
-//
-//        JSONObject jsonObject = getCocoJsonObject(fileName);
-//        String classId = retrieveClassId(className, jsonObject);
-//        // Get "annotations" array safely, avoid NullPointerException by using opt() instead of get()
-//        JSONArray  annotations     = (JSONArray) jsonObject.opt("annotations");
-//
-//        // This block of code sets the data quantity for each element in tagVo.getTagList()
-//        for (TagVo tagVo : classVo.getClassTagList()) {
-//            for (Object anno : annotations) {
-//                if (anno instanceof JSONObject) {
-//                    JSONObject  annoObject = (JSONObject) anno;
-//                    String      jsonClassId = annoObject.getNumber("category_id").toString();
-//
-//                    JSONArray attributeArray = annoObject.optJSONArray("attributes");
-//                    if (attributeArray != null) {
-//                        String attributeVal = null;
-//
-//                        for (Object attr : attributeArray) {
-//                            if (attr instanceof JSONObject) {
-//                                JSONObject attrObj = (JSONObject) attr;
-//                                if (attrObj.has(tagVo.getTagName()) ) {
-//                                    attributeVal = attrObj.optString(tagVo.getTagName());
-//                                    break;
-//                                }
-//                            }
-//                        }
-//                        if (attributeVal != null && jsonClassId.equals(classId)) {
-//                            for (TagClassVo tagClassVo : tagVo.getTagList()) {
-//                                if (attributeVal.equals(tagClassVo.getTagName())) {
-//                                    tagClassVo.setDataQty(tagClassVo.getDataQty() + 1);
-//                                }
-//                            }
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//        return classVo;
-//    }
 
     public List<TagVo> getTagList(String classId, String folderPath, TaskVo taskVo) throws FileNotFoundException {
         File dir = new File(folderPath);
@@ -841,83 +667,6 @@ public class WorkDataService {
         return tagList;
     }
 
-    // get tag list value for project information
-//    public List<TagVo> getTagListCoco (String classId,String folderPath,TaskVo taskVo) throws FileNotFoundException {
-//        File        dir          = new File(folderPath);
-//        String[]    folderList   = dir.list();
-//        String      cocoPath     = "";
-//
-//
-//        List<TagVo> tagList      = getTagList(classId,taskVo);
-//        for (String folder : folderList) {
-//            if (folder.contains("coco")) {
-//                cocoPath = dir.toString() + File.separator + folder;
-//                break;
-//            }
-//        }
-//
-//        File            cocoFile  = new File(cocoPath);
-//        FileInputStream inputStream = new FileInputStream(cocoFile);
-//
-//        // Convert to JSON string using InputStream
-//        String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
-//                .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-//
-//        JSONObject jsonObject = new JSONObject(jsonContent);
-//        JSONArray  annotations     = (JSONArray) jsonObject.get("annotations");
-//
-//        List<String> occlusionList          = new ArrayList<>();
-//        List<String> sideList               = new ArrayList<>();
-//        List<String> truncationList         = new ArrayList<>();
-//
-//        for (Object anno : annotations) {
-//            JSONObject  annoObject = (JSONObject) anno;
-//            String      jsonClassId = annoObject.getNumber("category_id").toString();
-//
-//            if (!annoObject.has("attributes") || !(annoObject.get("attributes") instanceof JSONArray)) {
-//                continue; // Skip objects without "attributes"
-//            }
-//            if(!Objects.equals(jsonClassId, classId)) { continue;}
-//
-//            // Get the "attributes" array
-//            JSONArray   attributes  = (JSONArray) annoObject.get("attributes");
-//            for (Object attr : attributes) {
-//                JSONObject  objects       = (JSONObject) attr;
-//                if(objects.has("Occlusion")) {
-//                    String occlusionVal = objects.getString("Occlusion");
-//                    if (!occlusionList.contains(String.valueOf(occlusionVal))) {
-//                        occlusionList.add(String.valueOf(occlusionVal));
-//                    }
-//                }
-//
-//                if(objects.has("Truncation")) {
-//                    String truncationVal = objects.getString("Truncation");
-//                    if (!truncationList.contains(String.valueOf(truncationVal))) {
-//                        truncationList.add(String.valueOf(truncationVal));
-//                    }
-//                }
-//
-//                if(objects.has("side")) {
-//                    String sideVal = objects.getString("side");
-//                    if (!sideList.contains(String.valueOf(sideVal))) {
-//                        sideList.add(String.valueOf(sideVal));
-//                    }
-//                }
-//            }
-//        }
-//
-//        for (TagVo tagVo : tagList) {
-//            if (tagVo.getTagName().equals("Occlusion")) {
-//                tagVo.setTagValueList(occlusionList);
-//            } else if (tagVo.getTagName().equals("Truncation")) {
-//                tagVo.setTagValueList(truncationList);
-//            } else if (tagVo.getTagName().equals("side")) {
-//                tagVo.setTagValueList(sideList);
-//            }
-//        }
-//        return tagList;
-//    }
-
 
     // hard generate tag list
     private List<TagVo> getTagList (String classId,TaskVo taskVo) {
@@ -964,62 +713,6 @@ public class WorkDataService {
 
         return tagList;
     }
-
-
-    //helper method to get the list of image files in a folder
-    private List<String> getImages(String folderPath) throws Exception {
-        File dir = new File(folderPath);
-        List<String> imagePaths = new ArrayList<>();
-
-        if (!dir.exists() || !dir.isDirectory()) {
-            throw new Exception("Invalid folder path: " + folderPath);
-        }
-        //Scan folder and its subfolders
-        Queue<File> queue = new LinkedList<>();
-        queue.add(dir);
-        while (!queue.isEmpty()) {
-            File currentFolder = queue.poll();
-            File[] files = currentFolder.listFiles();
-            if (files != null) {
-                for (File file : files) {
-                    if (file.isDirectory()) {
-                        queue.add(file);
-                    } else {
-                        String fileName = file.getName().toLowerCase();
-                        //check if the file is an image file ( based on its name suffix)
-                        if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg") ||
-                                fileName.endsWith(".png")) {
-                            imagePaths.add(file.getName());
-                        }
-                    }
-                }
-            }
-        }
-        return imagePaths;
-    }
-
-    //helper method to get the coco json object
-    private JSONObject getCocoJsonObject(String fileName) throws FileNotFoundException {
-        File     dir          = new File(rootPath + File.separator + fileName);
-        String[] folderList   = dir.list();
-        String   cocoPath   = "";
-        assert folderList != null;
-        for (String folder : folderList) {
-            if (folder.contains("coco")) {
-                cocoPath = dir + File.separator + folder;
-                break;
-            }
-        }
-        File            cocoFile  = new File(cocoPath);
-        FileInputStream inputStream = new FileInputStream(cocoFile);
-
-        // Convert to JSON string using InputStream
-        String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
-                .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-
-        return new JSONObject(jsonContent);
-    }
-
 
 
     private String retrieveClassId(String className, JSONArray jsonArray) {
@@ -1088,22 +781,36 @@ public class WorkDataService {
         return fileName.replaceAll("^frame_(\\d+)\\.(jpg|jpeg|png)$", "$1");
     }
 
-    private boolean hasFrameWithIndex(JSONArray jsonArray, String imageIndex) {
-        for (int i = 0; i < jsonArray.length(); i++) {
-            JSONObject frame = jsonArray.getJSONObject(i);
-            if (imageIndex.equals(frame.getString("index"))) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private String generateTagId() {
         return "tag" + TAG_COUNTER.getAndIncrement();
     }
 
     private String generateObjectId() {
         return "dobj" + OBJECT_COUNTER.getAndIncrement();
+    }
+
+    private List<String> getClassIdList(TaskVo taskVo) {
+        List<String> idList = new ArrayList<>();
+        if(taskVo != null && taskVo.getClassVoList() !=  null) {
+            for( ClassVo classVo : taskVo.getClassVoList()){
+                if(classVo != null && classVo.getClassId() != null) {
+                    idList.add(classVo.getClassId());
+                }
+            }
+        }
+        return idList;
+    }
+
+    private String findClassIdyClassName(TaskVo taskVo, String inputClassName) {
+        if(taskVo == null || taskVo.getClassVoList() == null || inputClassName == null) {
+            return null;
+        }
+        for (ClassVo classVo : taskVo.getClassVoList()) {
+            if(classVo != null && inputClassName.equals(classVo.getClassName())) {
+                return classVo.getClassId();
+            }
+        }
+        return null;
     }
 
 

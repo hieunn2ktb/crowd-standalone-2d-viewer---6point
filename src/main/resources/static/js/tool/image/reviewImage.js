@@ -230,6 +230,7 @@ page.fn.init = function() {
   });
   let border = _common.cookie.get(page.constants.cookieKeys.border, page.constants.config.border.default);
   page.fn.setViewBorder(border);
+  console.log("_common.cookie",_common.cookie)
   $("#sliderBorder").slider({
     value: border
     , step: page.constants.config.border.interval
@@ -1873,6 +1874,7 @@ page.fn.render.keypoint = function(object) {
   let minXY = null;
   let constKey = page.data.task.keypointMap.get(page.data.objectKeypointNumber);
   log.info(constKey, "page.fn.render.keypoint, constKey");
+
   try {
     let groupId = "group_" + object.objectId;
     let g = $("#"+groupId);
@@ -1905,6 +1907,42 @@ page.fn.render.keypoint = function(object) {
         constKey.position.forEach(function (point) {
           m2.put(point[2], point);
         });
+        // ===== PHẦN THÊM VÀO TỰ ĐỘNG VẼ ROI ===== //
+        // 1. Thu thập tất cả tọa độ từ objectLocation
+        let allX = [];
+        let allY = [];
+        loc.forEach(point => {
+          if (point[0] > -999 && point[1] > -999) { // Lọc điểm hợp lệ
+            allX.push(point[0]);
+            allY.push(point[1]);
+          }
+        });
+
+// 2. Tính toán bounding box bao quanh tất cả keypoint
+        if (allX.length > 0) {
+          const minX = Math.min(...allX);
+          const minY = Math.min(...allY);
+          const maxX = Math.max(...allX);
+          const maxY = Math.max(...allY);
+
+          // 3. Tạo ROI rectangle
+          const roiRect = {
+            x: minX,
+            y: minY,
+            width: maxX - minX,
+            height: maxY - minY
+          };
+
+          // 4. Vẽ bounding box
+          const roiBox = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+          roiBox.setAttribute("x", roiRect.x);
+          roiBox.setAttribute("y", roiRect.y);
+          roiBox.setAttribute("width", roiRect.width);
+          roiBox.setAttribute("height", roiRect.height);
+          roiBox.setAttribute("class", "dynamic-roi CLASS_" + object.classId);
+          roiBox.setAttribute("style", "stroke: #FF0000;fill: none;stroke-width: 2;");
+          g.append(roiBox);
+        }
         if (_common.isNotEmpty(constKey.roi)) {
           let roi = [];
           let roiXList = [];
