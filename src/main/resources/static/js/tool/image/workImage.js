@@ -9860,13 +9860,13 @@ page.fn.data.getImageList = function (param) {
     data.pageIndex = page.data.paging.pageIndex;
     data.sort = param.sort;
     let url = "/apis/v1/workspace/annotate/list";
-    if(page.data.permissionCode == page.constants.workType.reviewer) {
-        url = "/apis/v1/workspace/review/multiList"
-    } else if(page.data.permissionCode == page.constants.workType.inspector) {
-        url = "/apis/v1/workspace/inspect/multiList"
-    } else if(page.data.permissionCode == page.constants.workType.master) {
-        url = "/apis/v1/workspace/master/multiList"
-    }
+    // if(page.data.permissionCode == page.constants.workType.reviewer) {
+    //     url = "/apis/v1/workspace/review/multiList"
+    // } else if(page.data.permissionCode == page.constants.workType.inspector) {
+    //     url = "/apis/v1/workspace/inspect/multiList"
+    // } else if(page.data.permissionCode == page.constants.workType.master) {
+    //     url = "/apis/v1/workspace/master/multiList"
+    // }
 
     if(page.data.permissionCode != page.constants.workType.annotator
         && page.data.searchConditionByReview != null

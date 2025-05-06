@@ -44,7 +44,6 @@ public class ProjectService {
     public TaskVo getProjectInfo(String fileName) throws Exception {
         int totalObj     = 0;
         String folderPath = rootPath + File.separator + fileName;
-        List<KeypointVo> keypointVoList = new ArrayList<>();
         TaskVo taskVo = new TaskVo();
 
         taskVo.setProjectId(idGenerateService.generateProjectId());
@@ -172,22 +171,55 @@ public class ProjectService {
                 //===========NEW =========================
                 // Create TagVo list dynamically
                 List<TagVo> tagList = new ArrayList<>();
-                for(String tagString: tagListString) {
-                    TagVo tagVo = new TagVo();
-                    tagVo.setProjectId(taskVo.getProjectId());
-                    tagVo.setTaskId(taskVo.getTaskId());
-                    tagVo.setTagId(idGenerateService.generateTagId());
-                    tagVo.setTagName(tagString);
-                    tagVo.setTagTypeCd("IMG");
-                    tagVo.setTagValTypeCd("20");
-                    tagVo.setColor(getRandomHexColor());
-                    tagVo.setTagValueList(new ArrayList<>(tagValueMap.get(tagString)));
-                    if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
-                        tagVo.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
-                        tagVo.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), tagVo, taskVo));
-                    }
-                    tagList.add(tagVo);
+                //Dùng để tạo tag tự động
+//                for(String tagString: tagListString) {
+//                    TagVo tagVo = new TagVo();
+//                    tagVo.setProjectId(taskVo.getProjectId());
+//                    tagVo.setTaskId(taskVo.getTaskId());
+//                    tagVo.setTagId(idGenerateService.generateTagId());
+//                    tagVo.setTagName(tagString);
+//                    tagVo.setTagTypeCd("IMG");
+//                    tagVo.setTagValTypeCd("20");
+//                    tagVo.setColor(getRandomHexColor());
+//                    tagVo.setTagValueList(new ArrayList<>(tagValueMap.get(tagString)));
+//                    if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
+//                        tagVo.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
+//                        tagVo.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), tagVo, taskVo));
+//                    }
+//                    tagList.add(tagVo);
+//                }
+
+                //Dùng để hard code tạo tag cố định: trunc và occ
+                TagVo truncationTag = new TagVo();
+                truncationTag.setProjectId(taskVo.getProjectId());
+                truncationTag.setTaskId(taskVo.getTaskId());
+                truncationTag.setTagId(idGenerateService.generateTagId());
+                truncationTag.setTagName("Truncation");
+                truncationTag.setTagTypeCd("IMG");
+                truncationTag.setTagValTypeCd("20");
+                truncationTag.setColor("#0aa57d");
+                truncationTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
+                if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
+                    truncationTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
+                    truncationTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), truncationTag, taskVo));
                 }
+                tagList.add(truncationTag);
+
+
+                TagVo occlusionTag = new TagVo();
+                occlusionTag.setProjectId(taskVo.getProjectId());
+                occlusionTag.setTaskId(taskVo.getTaskId());
+                occlusionTag.setTagId(idGenerateService.generateTagId());
+                occlusionTag.setTagName("Occlusion");
+                occlusionTag.setTagTypeCd("IMG");
+                occlusionTag.setTagValTypeCd("20");
+                occlusionTag.setColor("#b5eb8d");
+                occlusionTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
+                if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
+                    occlusionTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
+                    occlusionTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), occlusionTag, taskVo));
+                }
+                tagList.add(occlusionTag);
 
                 // Update taskVo tag list
                 if (taskVo.getTagList() != null && !taskVo.getTagList().isEmpty()) {
@@ -261,34 +293,6 @@ public class ProjectService {
     }
 
 
-    private List<TagVo> getTagList(List<ClassVo> classList, TaskVo taskVo) {
-        List<String> classIdList = new ArrayList<>();
-        if (!classList.isEmpty()) {
-            for (ClassVo classVo : classList) {
-                classIdList.add(classVo.getClassId());
-            }
-        }
-
-        List<TagVo> tagList = new ArrayList<>();
-
-        for (String tag : this.tagListString) {
-            TagVo tagVo = new TagVo();
-            tagVo.setProjectId(taskVo.getProjectId());
-            tagVo.setTaskId(taskVo.getTaskId());
-            tagVo.setTagId(idGenerateService.generateTagId());
-            tagVo.setTagName(tag);
-            tagVo.setTagTypeCd("OBJ");
-            tagVo.setTagValTypeCd("20");
-            tagVo.setColor(getRandomHexColor());
-            tagVo.setMatchClass(String.join(", ", classIdList));
-            if (!classList.isEmpty()) {
-                tagVo.setTagClassVoList(tagClassVoList(classList, tagVo, taskVo));
-            }
-            tagList.add(tagVo);
-        }
-        return tagList;
-    }
-
         private List<ClassVo> getClassList (JSONArray classes, TaskVo taskVo) {
         List<ClassVo> classList = new ArrayList<>();
         for (int i = 0; i < classes.length(); i++) {
@@ -316,7 +320,7 @@ public class ProjectService {
                 classVo.setClassId(idGenerateService.generateClassId()); // Generate ID since JSON lacks "id"
                 classVo.setClassName(className);
                 classVo.setClassValue(className);
-                classVo.setColor(getRandomHexColor());
+                classVo.setColor(this.utilService.getClassColorByClassName(className));
                 classList.add(classVo);
             }
         }
@@ -337,17 +341,6 @@ public class ProjectService {
         }
 
         return tagClassVoList;
-    }
-
-    private static String getRandomHexColor() {
-        Random random = new Random();
-        // Generate random RGB components (0-255)
-        int r = random.nextInt(256);
-        int g = random.nextInt(256);
-        int b = random.nextInt(256);
-
-        // Convert each component to 2-digit hex and format as #RRGGBB
-        return String.format("#%02X%02X%02X", r, g, b);
     }
 
 }

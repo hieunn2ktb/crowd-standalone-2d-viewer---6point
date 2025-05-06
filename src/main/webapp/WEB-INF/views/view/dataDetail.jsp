@@ -109,37 +109,37 @@
                                     </table>
                                 </div>
                             </div>
-                            <div class="table-wrap">
-                                <div class="table-header">
-                                    <div class="table-header-left">
-                                        <!-- 231123 Object/Point Tag => Object Tag 변경 -->
-                                        <span class="table-title">Object Tag</span>
-                                    </div>
-                                </div>
-                                <div class="table-list">
-                                    <table>
-                                        <!-- 231123 colgroup 변경 -->
-                                        <colgroup>
-                                            <col width="60px">
-                                            <col width="32%">
-                                            <col width="*%">
-                                        </colgroup>
-                                        <thead>
-                                        <tr>
-                                            <!-- 231123 type 삭제 -->
-                                            <th>NO</th>
-                                            <th>TAG</th>
-                                            <th>VALUE</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody id="objectTagList">
-                                        <tr>
-                                            <td colspan="6" class="none-data">Please choose a class</td>
-                                        </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+<%--                            <div class="table-wrap">--%>
+<%--                                <div class="table-header">--%>
+<%--                                    <div class="table-header-left">--%>
+<%--                                        <!-- 231123 Object/Point Tag => Object Tag 변경 -->--%>
+<%--                                        <span class="table-title">Object Tag</span>--%>
+<%--                                    </div>--%>
+<%--                                </div>--%>
+<%--                                <div class="table-list">--%>
+<%--                                    <table>--%>
+<%--                                        <!-- 231123 colgroup 변경 -->--%>
+<%--                                        <colgroup>--%>
+<%--                                            <col width="60px">--%>
+<%--                                            <col width="32%">--%>
+<%--                                            <col width="*%">--%>
+<%--                                        </colgroup>--%>
+<%--                                        <thead>--%>
+<%--                                        <tr>--%>
+<%--                                            <!-- 231123 type 삭제 -->--%>
+<%--                                            <th>NO</th>--%>
+<%--                                            <th>TAG</th>--%>
+<%--                                            <th>VALUE</th>--%>
+<%--                                        </tr>--%>
+<%--                                        </thead>--%>
+<%--                                        <tbody id="objectTagList">--%>
+<%--                                        <tr>--%>
+<%--                                            <td colspan="6" class="none-data">Please choose a class</td>--%>
+<%--                                        </tr>--%>
+<%--                                        </tbody>--%>
+<%--                                    </table>--%>
+<%--                                </div>--%>
+<%--                            </div>--%>
                             <div class="table-wrap">
                                 <div class="table-header">
                                     <div class="table-header-left">
@@ -405,22 +405,23 @@
     }
 
     function reSearchData (classId) {
-        let param = new Object();
-        param.classId = classId;
-        param.folderPath = $("#folderPathTab").val();
-
-        let option = new Object();
-        option.data = param;
-        option.url = '/view/procListOfTag';
-        option.successCallback = function(res) {
-            if (res.result) {
-                let data = res.data;
-                reRenderData(data);
-            } else {
-
-            }
-        }
-        _ai.ajax.send(option);
+        // let param = new Object();
+        // param.classId = classId;
+        // param.folderPath = $("#folderPathTab").val();
+        //
+        // let option = new Object();
+        // option.data = param;
+        // option.url = '/view/procListOfTag';
+        // option.successCallback = function(res) {
+        //     if (res.result) {
+        //         let data = res.data;
+        //         reRenderData(data);
+        //     } else {
+        //
+        //     }
+        // }
+        // _ai.ajax.send(option);
+        return;
     }
 
     function reRenderData(data) {

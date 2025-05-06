@@ -320,59 +320,59 @@
                                                         </table>
                                                     </div>
                                                 </div>
-                                                <div class="table-wrap">
-                                                    <div class="table-header">
-                                                        <div class="table-header-left">
-                                                            <span class="table-title">Object Tag</span>
-                                                        </div>
-                                                    </div>
-                                                    <div class="table-list">
-                                                        <table>
-                                                            <colgroup>
-                                                                <col width="60px">
-                                                                <col width="*">
-                                                                <col width="32%">
-                                                                <col width="32%">
-                                                            </colgroup>
-                                                            <thead>
-                                                            <tr>
-                                                                <th>NO</th>
-                                                                <th>TAG</th>
-                                                                <th>CLASS</th>
-                                                                <th>VALUE</th>
-                                                            </tr>
-                                                            </thead>
-                                                            <tbody>
-                                                            <tr>
-                                                                <td>1</td>
-                                                                <td class="text-left">
-                                                                    <div class="flex gap8">
-                                                                                <span class="color-box">
-                                                                                    <input type="color" name="" id="" value="#008000" class="input-color">
-                                                                                </span>
-                                                                        <span>police_motir</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>motorcycle</td>
-                                                                <td>1</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>2</td>
-                                                                <td class="text-left">
-                                                                    <div class="flex gap8">
-                                                                                <span class="color-box">
-                                                                                    <input type="color" name="" id="" value="#0000FF" class="input-color">
-                                                                                </span>
-                                                                        <span>seq_on</span>
-                                                                    </div>
-                                                                </td>
-                                                                <td>emergency_strobe_light</td>
-                                                                <td>1~25</td>
-                                                            </tr>
-                                                            </tbody>
-                                                        </table>
-                                                    </div>
-                                                </div>
+<%--                                                <div class="table-wrap">--%>
+<%--                                                    <div class="table-header">--%>
+<%--                                                        <div class="table-header-left">--%>
+<%--                                                            <span class="table-title">Object Tag</span>--%>
+<%--                                                        </div>--%>
+<%--                                                    </div>--%>
+<%--                                                    <div class="table-list">--%>
+<%--                                                        <table>--%>
+<%--                                                            <colgroup>--%>
+<%--                                                                <col width="60px">--%>
+<%--                                                                <col width="*">--%>
+<%--                                                                <col width="32%">--%>
+<%--                                                                <col width="32%">--%>
+<%--                                                            </colgroup>--%>
+<%--                                                            <thead>--%>
+<%--                                                            <tr>--%>
+<%--                                                                <th>NO</th>--%>
+<%--                                                                <th>TAG</th>--%>
+<%--                                                                <th>CLASS</th>--%>
+<%--                                                                <th>VALUE</th>--%>
+<%--                                                            </tr>--%>
+<%--                                                            </thead>--%>
+<%--                                                            <tbody>--%>
+<%--                                                            <tr>--%>
+<%--                                                                <td>1</td>--%>
+<%--                                                                <td class="text-left">--%>
+<%--                                                                    <div class="flex gap8">--%>
+<%--                                                                                <span class="color-box">--%>
+<%--                                                                                    <input type="color" name="" id="" value="#008000" class="input-color">--%>
+<%--                                                                                </span>--%>
+<%--                                                                        <span>police_motir</span>--%>
+<%--                                                                    </div>--%>
+<%--                                                                </td>--%>
+<%--                                                                <td>motorcycle</td>--%>
+<%--                                                                <td>1</td>--%>
+<%--                                                            </tr>--%>
+<%--                                                            <tr>--%>
+<%--                                                                <td>2</td>--%>
+<%--                                                                <td class="text-left">--%>
+<%--                                                                    <div class="flex gap8">--%>
+<%--                                                                                <span class="color-box">--%>
+<%--                                                                                    <input type="color" name="" id="" value="#0000FF" class="input-color">--%>
+<%--                                                                                </span>--%>
+<%--                                                                        <span>seq_on</span>--%>
+<%--                                                                    </div>--%>
+<%--                                                                </td>--%>
+<%--                                                                <td>emergency_strobe_light</td>--%>
+<%--                                                                <td>1~25</td>--%>
+<%--                                                            </tr>--%>
+<%--                                                            </tbody>--%>
+<%--                                                        </table>--%>
+<%--                                                    </div>--%>
+<%--                                                </div>--%>
                                                 <div class="table-wrap">
                                                     <div class="table-header">
                                                         <div class="table-header-left">

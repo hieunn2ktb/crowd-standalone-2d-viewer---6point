@@ -323,6 +323,9 @@ select:hover, button:hover {background-color: var(--button-bg-hover);}
 .btn-m-tag{background: #323536 url("/images/tool/reviewImage/icon_tag.svg") no-repeat center 0;background-size: 100% auto;}
 .btn-m-tag:hover{background-color: #333536;background-position: center -30px;background-size: 100% auto;}
 .btn-m-tag.on{background-color: #252727;background-position: center -60px;background-size: 100% auto;}
+.btn-m-comment{background: #323536 url("/images/tool/reviewImage/icon_comment.svg") no-repeat center 0;background-size: 100% auto;}
+.btn-m-comment:hover{background-color: #333536;background-position: center -30px;background-size: 100% auto;}
+.btn-m-comment.on{background-color: #252727;background-position: center -60px;background-size: 100% auto;}
 .btn-m-option{background: #323536 url("/images/tool/reviewImage/icon_option.svg") no-repeat center 0;background-size: 100% auto;}
 .btn-m-option:hover{background-color: #333536;background-position: center -30px;background-size: 100% auto;}
 .btn-m-option.on{background-color: #252727;background-position: center -60px;background-size: 100% auto;}

@@ -55,7 +55,7 @@ public class WorkspaceController {
     @RequestMapping(value = { "/image-detail" }, method = { RequestMethod.GET, RequestMethod.POST })
     @ResponseBody
     public CommonResponseVo<ReviewImageListVo> imagesDetail(TaskVo taskVo, HttpServletRequest request) {
-        log.info("##########################################/apis/v1/workspace/annotate/list##########################################");
+        log.info("##########################################/apis/v1/workspace/task/image-detail##########################################");
         CommonResponseVo<ReviewImageListVo> r = new CommonResponseVo<>();
         try {
             ReviewImageListVo reviewImageListVo = new ReviewImageListVo();

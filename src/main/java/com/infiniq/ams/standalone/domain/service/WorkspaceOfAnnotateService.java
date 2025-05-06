@@ -18,9 +18,7 @@ import org.springframework.stereotype.Service;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 import java.util.regex.Pattern;
 
 @Slf4j
@@ -34,74 +32,40 @@ public class WorkspaceOfAnnotateService {
     private final IdGenerateService idGenerateService;
     private final ObjectCopyHelper objectCopyHelper;
 
-    //Đọc thông tin từ file COCO JSON và trả ra response có format giống như trên main-web
-//    public CommonResponseVo<ReviewImageListVo> get (TaskVo taskVo, List<WorkTicketApiResponseVo> list,TaskVo sessionTask) throws JsonProcessingException, FileNotFoundException {
-//        CommonResponseVo<ReviewImageListVo> r = new CommonResponseVo<>();
-//        try {
-////            TaskWorkTicketVo ticketVo = objectCopyHelper.copyObject(requestVo, TaskWorkTicketVo.class);
-////            ticketVo.setPageSize(100);
-//
-////            List<WorkspaceTaskTicketVo> reviewImageList = new ArrayList<>();
-//            ReviewImageListVo res = new ReviewImageListVo();
-////            res.setPageIndex(requestVo.getPageIndex());
-//            List<ReviewImageVo> tempReviewImageList = new ArrayList<>();
-//
-//        } catch (Exception e) {
-//            log.info(e.getMessage());
-//            r.setResult(false);
-//        }
-//
-//        /////////////////////////////////////////////////////////////////////
-//        WorkTicketApiResponseVo workTicket = new WorkTicketApiResponseVo();
-//        for(WorkTicketApiResponseVo workTicketApiResponseVo : list){
-//            if(taskVo.getWorkTicketId().equals(workTicketApiResponseVo.getWorkTicketId())){
-//                workTicket = workTicketApiResponseVo;
-//                break;
-//            }
-//        }
-//        workTicket.setProjectId(taskVo.getProjectId());
-//        workTicket.setTaskId(taskVo.getTaskId());
-//        workTicket.setWorkTicketId(taskVo.getWorkTicketId());
-//
-//        String   folderName = sessionTask.getTaskName();
-//        String   folderPath = rootPath + File.separator + folderName;
-//        File     dir        = new File(folderPath);
-//        String[] folderList = dir.list();
-//
-//        // Object, tag, class information
-//        String cocoPath      = "";
-//        String imgTagPath      = "";
-//
-//        for (String folder : folderList) {
-//            if (folder.contains("coco")) {
-//                cocoPath = folderPath + File.separator + folder;
-//            } else if (folder.contains("CMR")){
-//                imgTagPath = folderPath + File.separator + folder;
-//            }
-//        }
-//        File            cocoFile  = new File(cocoPath);
-//        FileInputStream inputStream = new FileInputStream(cocoFile);
-//
-//        // Convert to JSON string using InputStream
-//        String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
-//                .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-//
-//        JSONObject jsonObject    = new JSONObject(jsonContent);
-//        //set class for task
-//        JSONArray classes = new JSONArray();
-//        try {
-//            classes = jsonObject.getJSONArray("categories");
-//        } catch (JSONException e) {
-//            System.out.println("categories key not found or not a valid JSONArray");
-//        }
-//        String     fileIndexName = "";
-//        for (Object cls : classes) {
-//            JSONObject classObj = (JSONObject) cls;
-//            fileIndexName = (String) classObj.get("index");
-//
-//        }
-//        return null;
-//    }
+    public List<Map<String,Object>> getComment (TaskVo sessionTask) {
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        String commentPath = rootPath + File.separator + sessionTask.getTaskName() + File.separator + "comment";
+        File commentDir = new File(commentPath);
+        if(!commentDir.exists() || !commentDir.isDirectory()){
+            return null;
+        }
+        String[] commentList = commentDir.list();
+        if(commentList != null && commentList.length > 0){
+            for(String commentFile : commentList){
+                try{
+                    File file = new File (commentPath + File.separator + commentFile);
+                    FileInputStream inputStream = new FileInputStream(file);
+                    String jsonContent = new BufferedReader(new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))
+                            .lines()
+                            .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+                            .toString();
+                    JSONObject jsonObject = new JSONObject(jsonContent);
+                    Map<String, Object> commentData = new HashMap<>();
+
+                    commentData.put("fileName", jsonObject.optString("file_name"));
+                    commentData.put("content", jsonObject.optString("comment"));
+                    commentData.put("register_datetime", jsonObject.optString("register_datetime"));
+
+                    resultList.add(commentData);
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return resultList;
+    }
+
+
     public WorkTicketApiResponseVo get (TaskVo taskVo, List<WorkTicketApiResponseVo> list,TaskVo sessionTask) throws JsonProcessingException, FileNotFoundException {
         WorkTicketApiResponseVo workTicket = new WorkTicketApiResponseVo();
         for (WorkTicketApiResponseVo workTicketApiResponseVo : list) {
@@ -685,7 +649,7 @@ public class WorkspaceOfAnnotateService {
         String jsonFileName = taskVo.getOrgnFileName().replace(".pcd", "") + ".json";
         File jsonFile = new File(commentPath, jsonFileName);
 
-        // JSON 파일 저장
+        // Save JSON file
         try (OutputStreamWriter writer = new OutputStreamWriter(new FileOutputStream(jsonFile), StandardCharsets.UTF_8)) {
             writer.write(jsonObject.toString(4));
         } catch (IOException e) {

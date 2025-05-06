@@ -1358,44 +1358,6 @@
         </li>
     </ul>
 </div>
-
-<script>
-
-    function saveComment(d) {
-        let topNode               = d.parentElement.parentElement;
-        let textarea              = topNode.querySelector('textarea');
-        let normalContentWrapList = topNode.querySelector('.normalContentWrap').textContent.split(' ');
-        let fileName              = '';
-        let closeButton           = topNode.querySelector('.material-icons');
-
-        for (let normalContentWrap of normalContentWrapList) {
-            if (normalContentWrap.includes('.pcd')) {
-                fileName = normalContentWrap;
-                break;
-            }
-        }
-
-
-        let data = new Object();
-        data.contents = textarea.value;
-        data.orgnFileName = fileName;
-
-        _common.ajax.api_host = "${frontApiUrl}";
-        let param = {
-            url : "/annotate/saveComment"
-            , param : data
-            , returnFunction : function(rev){
-                if (rev.result) {
-                    location.reload();
-                } else {
-                    console.log('Comment 저장 실패');
-                }
-            }
-        };
-        _common.ajax.asyncJSON2(param);
-
-    }
-</script>
 </body>
 </html>
 

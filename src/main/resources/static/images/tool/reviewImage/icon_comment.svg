@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 84">
+    <defs>
+        <style>
+            .bg-dark { fill: #333536; }
+            .bg-hover { fill: #333536; }
+            .bg-on { fill: #252727; }
+            .fill-gray { fill: #898a89; }
+            .fill-teal { fill: #2bb6a8; }
+        </style>
+    </defs>
+
+    <!-- Default (gray bubble on dark bg) -->
+    <rect class="bg-dark" y="0" width="28" height="28" rx="2"/>
+    <path class="fill-gray" d="M6 6h16c1.1 0 2 0.9 2 2v8c0 1.1-0.9 2-2 2h-7l-3.5 3v-3H6c-1.1 0-2-0.9-2-2V8c0-1.1 0.9-2 2-2z"/>
+
+    <!-- Hover (teal bubble on dark bg) -->
+    <rect class="bg-hover" y="28" width="28" height="28" rx="2"/>
+    <path class="fill-teal" d="M6 34h16c1.1 0 2 0.9 2 2v8c0 1.1-0.9 2-2 2h-7l-3.5 3v-3H6c-1.1 0-2-0.9-2-2v-8c0-1.1 0.9-2 2-2z"/>
+
+    <!-- On (teal bubble on darker bg) -->
+    <rect class="bg-on" y="56" width="28" height="28" rx="2"/>
+    <path class="fill-teal" d="M6 62h16c1.1 0 2 0.9 2 2v8c0 1.1-0.9 2-2 2h-7l-3.5 3v-3H6c-1.1 0-2-0.9-2-2v-8c0-1.1 0.9-2 2-2z"/>
+</svg>

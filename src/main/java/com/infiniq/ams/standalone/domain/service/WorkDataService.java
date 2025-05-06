@@ -1,24 +1,17 @@
 package com.infiniq.ams.standalone.domain.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.JsonArray;
 import com.infiniq.ams.standalone.domain.vo.*;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.io.FilenameUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.awt.*;
 import java.io.*;
-import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -36,16 +29,15 @@ public class WorkDataService {
 
     private final IdGenerateService idGenerateService;
     private final UtilService utilService;
-    @Getter
-    private int totalObj = 0;
+
     private static final AtomicInteger OBJECT_COUNTER = new AtomicInteger(100000);
     private static final AtomicInteger TAG_COUNTER = new AtomicInteger(100000);
     private static final AtomicInteger TAG_ID_GENERATOR = new AtomicInteger(100000);
-    private static final String[] COLOR_POOL = {
-            "#FF5733", "#33FF57", "#3357FF", "#F0A500", "#6A1B9A", "#00838F", "#C62828", "#2E7D32"
-    };
 
+    @Getter
+    private int totalObj = 0;
     public List<ReviewImageVo> getWorkedList(TaskVo task, String fileName) throws Exception {
+        this.totalObj = 0;
         JSONArray jsonArray = getJsonArray(fileName);
         if (jsonArray == null || jsonArray.isEmpty()) {
             throw new IllegalArgumentException("Invalid JSON structure: empty or missing frames");
@@ -329,7 +321,6 @@ public class WorkDataService {
         objectVo.setProjectId(task.getProjectId());
         objectVo.setTaskId(task.getTaskId());
         objectVo.setWorkTicketId(imageVo.getWorkTicketId());
-        objectVo.setColor(getRandomHexColor());
         objectVo.setObjectOrder(objectOrder);
 
         if(ann.has("attributes")) {
@@ -338,9 +329,11 @@ public class WorkDataService {
                 int outerType = ann.getInt("type");
                 int innerType = attrs.getInt("type");
                 String className = this.utilService.getClassName(outerType, innerType);
+                String color = this.utilService.getClassColorByClassName(className);
                 String classId = findClassIdyClassName(task, className);
                 objectVo.setClassId(classId);
                 objectVo.setClassName(className);
+                objectVo.setColor(color);
 
                 if (ann.has("box") && ann.has("keypoints")) {
                     JSONObject box = ann.getJSONObject("box");
@@ -353,16 +346,13 @@ public class WorkDataService {
                     String objectLocation = getObjectLocation(box, keypoints, objectType);
                     objectVo.setObjectLocation(objectLocation);
 
-                    //keypoint id (if objectType is keypoint)
-//                    if(objectType.equals("keypoint")) {
-//                        objectVo.setKeypointId();
-//                    }
                 }
 
                 // Tags from attributes comment tag cho đỡ lag
                 List<ImageObjectTagVo> tagList = new ArrayList<>();
                 for (String key : attrs.keySet()) {
                     Object value = attrs.opt(key);
+                    // chỉ lấy tag truncation và occlusion
                     if (value == null || value.equals(0) || (!Objects.equals(key, "truncation") && !Objects.equals(key, "occlusion"))) continue;
 
                     ImageObjectTagVo tag = new ImageObjectTagVo();
@@ -375,7 +365,7 @@ public class WorkDataService {
                     String tagValue = value.toString();
                     tag.setTagValueName(tagValue);
                     tag.setVal(tagValue);
-                    tag.setColor(getRandomHexColor());
+                    tag.setColor(this.utilService.getTagColorByTagNameAndTagValue(key,tagValue));
                     tag.setTagId(generateTagId());
 
                     tagList.add(tag);
@@ -524,7 +514,10 @@ public class WorkDataService {
                 JSONArray objects = frame.getJSONArray("objects");
                 for (int j = 0; j < objects.length(); j++) {
                     JSONObject obj = objects.getJSONObject(j);
-                    String className = obj.getString("class");
+                    JSONObject attributes = obj.getJSONObject("attributes");
+                    int outerType = obj.getInt("type");
+                    int innerType = attributes.getInt("type");
+                    String className = this.utilService.getClassName(outerType, innerType);
                     for (ClassVo classVo : taskVo.getClassVoList()) {
                         if (classVo.getClassName().equals(className)) {
                             classMap.compute(className, (key, value) -> (value == null) ? 1 : value + 1);
@@ -594,24 +587,24 @@ public class WorkDataService {
     public List<TagVo> getTagList(String classId, String folderPath, TaskVo taskVo) throws FileNotFoundException {
         File dir = new File(folderPath);
         String[] folderList = dir.list();
-        String cocoPath = "";
+        String jsonPath = "";
         if (folderList != null) {
             for (String folder : folderList) {
-                if (folder.contains("coco")) {
-                    cocoPath = folderPath + File.separator + folder;
+                if (folder.contains(".json")) {
+                    jsonPath = folderPath + File.separator + folder;
                     break;
                 }
             }
         }
-        if (cocoPath.isEmpty()) {
-            throw new FileNotFoundException("COCO JSON file not found in " + folderPath);
+        if (jsonPath.isEmpty()) {
+            throw new FileNotFoundException("JSON file not found in " + folderPath);
         }
 
         List<String> occlusionList = new ArrayList<>();
         List<String> truncationList = new ArrayList<>();
         List<String> sideList = new ArrayList<>();
 
-        try (FileInputStream inputStream = new FileInputStream(new File(cocoPath))) {
+        try (FileInputStream inputStream = new FileInputStream(jsonPath)) {
             String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
                     .lines()
                     .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
@@ -660,8 +653,6 @@ public class WorkDataService {
                 tagVo.setTagValueList(new ArrayList<>(occlusionList));
             } else if (tagVo.getTagName().equals("Truncation")) {
                 tagVo.setTagValueList(new ArrayList<>(truncationList));
-            } else if (tagVo.getTagName().equals("side")) {
-                tagVo.setTagValueList(new ArrayList<>(sideList));
             }
         }
         return tagList;
@@ -683,7 +674,7 @@ public class WorkDataService {
         truncationTag.setTagName("Truncation");
         truncationTag.setTagTypeCd("OBJ");
         truncationTag.setTagValTypeCd("20");
-        truncationTag.setColor(getRandomHexColor());
+//        truncationTag.setColor(getRandomHexColor());
         truncationTag.setMatchClass(String.join(", ", classIdList));
         tagList.add(truncationTag);
 
@@ -695,21 +686,9 @@ public class WorkDataService {
         occlusionTag.setTagName("Occlusion");
         occlusionTag.setTagTypeCd("OBJ");
         occlusionTag.setTagValTypeCd("20");
-        occlusionTag.setColor(getRandomHexColor());
+//        occlusionTag.setColor(getRandomHexColor());
         occlusionTag.setMatchClass(String.join(", ", classIdList));
         tagList.add(occlusionTag);
-
-        // Tag Name : side
-        TagVo typeTag = new TagVo();
-        typeTag.setProjectId(taskVo.getProjectId());
-        typeTag.setTaskId(taskVo.getTaskId());
-        typeTag.setTagId(idGenerateService.generateTagId());
-        typeTag.setTagName("side");
-        typeTag.setTagTypeCd("OBJ");
-        typeTag.setTagValTypeCd("20");
-        typeTag.setColor(getRandomHexColor());
-        typeTag.setMatchClass(String.join(", ", classIdList));
-        tagList.add(typeTag);
 
         return tagList;
     }
@@ -771,11 +750,7 @@ public class WorkDataService {
         return imagePaths;
     }
 
-    //helper method to generate a random hex color
-    private static String getRandomHexColor() {
-        int idx = ThreadLocalRandom.current().nextInt(COLOR_POOL.length);
-        return COLOR_POOL[idx];
-    }
+
 
     private String getImageIndexFromFileName(String fileName) {
         return fileName.replaceAll("^frame_(\\d+)\\.(jpg|jpeg|png)$", "$1");

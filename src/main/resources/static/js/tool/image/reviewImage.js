@@ -163,7 +163,7 @@ page.data.event = {
   , moveImageStartTop: 0
   , moveImageStartLeft: 0
 }
-
+page.data.currentImage = {}
 page.keypoint = {};
 
 page.message = {};
@@ -341,6 +341,7 @@ page.fn.init = function() {
   page.dom.btnsReview = $(".btnsReview");
   page.dom.btnsReviewPass = $(".btnsReviewPass");
   page.dom.btnToggleTag = $("#btnToggleTag");
+  page.dom.btnShowComment = $("#btnShowComment");
   page.dom.btnsReview.hide();
   page.dom.popGuide = $("#guide-modal");
   page.dom.popGuideHandle = $("#guide-modal .popUp-header").get(0);
@@ -385,7 +386,6 @@ page.fn.init = function() {
     sessionStorage.reviewSearch = null;
     page.fn.searchFromUI();
   }
-  log.info("step 1", "page.fn.init");
   page.fn.setTooltip();
   page.fn.createLocalForageKey();
   page.fn.domLanguageSetting();
@@ -730,11 +730,6 @@ page.fn.search = function(condition, showNext) {
     condition.filterStatus = 'filter_status_all';
   }
   let url = "/task/image-detail";
-  // if(condition.reqType == page.constants.permission.inspector) {
-  //   url = "/apis/v1/workspace/inspect/list";
-  // } else if(condition.reqType == page.constants.permission.master) {
-  //   url = "/apis/v1/workspace/master/list";
-  // }
   _common.ajax.asyncJSON2({
     url : url
     , param : condition
@@ -794,8 +789,8 @@ page.fn.search = function(condition, showNext) {
             totalCount : rev.paging.totalCount
             , lastPageIndex : rev.paging.endPage
             , currentPageIndex : rev.paging.pageIndex
-          };
 
+          };
           $("#pagingCurrentCount").text(rev.data.reviewImageList.length);
           $("#txt-file-locator-total").text(rev.data.reviewImageList.length);
           $("#pagingTotalCount").text(page.data.pagingInfo.totalCount);
@@ -1918,7 +1913,7 @@ page.fn.render.keypoint = function(object) {
           }
         });
 
-// 2. Tính toán bounding box bao quanh tất cả keypoint
+        // 2. Tính toán bounding box bao quanh tất cả keypoint
         if (allX.length > 0) {
           const minX = Math.min(...allX);
           const minY = Math.min(...allY);
@@ -2221,6 +2216,10 @@ page.fn.viewDetailInfo = function(workTicketId, isNeedChecked) {
   log.info(workTicketId, "page.fn.viewDetailInfo");
   let im = $(".data-box[data-workTicketId='"+ workTicketId + "']");
   let img = page.data.imageMap.get(workTicketId);
+  let comment = page.imageCommentMap?.get(img.originalFileName)?.[0]?.content || '';
+  log.info(img.originalFileName, "img.originalFileNameEEEEEEE");
+  log.info(comment, "COMMENTTTTTTT");
+  page.data.currentImage = img;
   if(im.length > 0) {
     im[0].scrollIntoView(false);
     $(window).scrollTop(0);
@@ -2251,6 +2250,7 @@ page.fn.viewDetailInfo = function(workTicketId, isNeedChecked) {
     }
     $("#root div.data-box[data-workTicketId='"+workTicketId+"']").append(_common.template.parseObject("tmpl-hightlightImage"));
     $("#viewDetail_fileName").text(img.originalFileName);
+    $("#viewDetail_comment").text(comment);
     $('#copyBtnDiv').html('');
     $('#copyBtnDiv').append(_common.template.parseObject('tmpl-fileInfo-fileCopy', img))
     $("#viewDetail_fileName").parent().children(".title-tooltip").text(img.originalFileName);
@@ -3009,6 +3009,234 @@ page.fn.toggleViewTag = function() {
     _common.cookie.set(page.constants.cookieKeys.isViewTags, "true");
   }
 }
+
+page.fn.showComment = function(containerSelector = 'body') {
+  //toggle
+  if(page.dom.btnShowComment.hasClass("on")) {
+    page.dom.btnShowComment.removeClass("on");
+  } else {
+    page.dom.btnShowComment.addClass("on");
+  }
+
+  // Lấy container cha (mặc định là body nếu không chỉ định)
+  const container = document.querySelector(containerSelector) || document.body;
+
+  // Kiểm tra nếu popup đã tồn tại
+  if (document.getElementById("commentPopup")) {
+    // document.getElementById("commentPopup").style.display = "none";
+    document.body.removeChild(document.getElementById("commentPopup"));
+    return;
+  }
+
+  // Tạo popup với style đẹp hơn
+  const popup = document.createElement("div");
+  popup.id = "commentPopup";
+  popup.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: #fff;
+    padding: 0;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    z-index: 1000;
+    width: 400px;
+    max-width: 90vw;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  `;
+
+  // Nội dung popup
+  popup.innerHTML = `
+    <div id="popupHeader" style="
+      background: #323536;
+      color: white;
+      padding: 15px 20px;
+      font-size: 18px;
+      font-weight: 600;
+      cursor: move;
+      user-select: none;
+    ">
+      <span>Add Comment</span>
+      <button id="closePopupBtn" style="
+        float: right;
+        background: transparent;
+        border: none;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 5px;
+        margin-top: -5px;
+      ">×</button>
+    </div>
+    <div style="padding: 20px;">
+      <textarea id="commentText" placeholder="Write your comment here..." style="
+        width: 100%;
+        min-height: 120px;
+        padding: 12px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        resize: vertical;
+        font-family: inherit;
+        font-size: 14px;
+        transition: border 0.3s;
+      "></textarea>
+      <div style="
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 15px;
+      ">
+        <button onclick="page.fn.closeComment()" style="
+          padding: 8px 16px;
+          background: #f5f5f5;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">Cancel</button>
+        <button onclick="page.fn.submitComment()" style="
+          padding: 8px 16px;
+          background: #323536;
+          color: white;
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+          transition: all 0.2s;
+        ">Submit</button>
+      </div>
+    </div>
+  `;
+
+  // Thêm vào DOM
+  document.body.appendChild(popup);
+
+  // Hiệu ứng fade in
+  setTimeout(() => {
+    popup.style.opacity = "1";
+    popup.style.transform = "translate(-50%, -50%) scale(1)";
+  }, 10);
+
+  // Xử lý di chuyển popup
+  const header = popup.querySelector("#popupHeader");
+  let isDragging = false;
+  let startX, startY, initialX, initialY;
+
+  header.addEventListener('mousedown', function(e) {
+    isDragging = true;
+
+    // Tính toán chính xác offset từ vị trí click đến góc popup
+    const rect = popup.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    startX = e.clientX;
+    startY = e.clientY;
+    initialX = rect.left - containerRect.left; // Tính toán vị trí tương đối trong container
+    initialY = rect.top - containerRect.top;
+
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+
+    header.style.cursor = 'grabbing';
+    popup.style.transition = 'none';
+    popup.style.userSelect = 'none'; // Ngăn chọn text khi kéo
+    e.preventDefault();
+  });
+
+  const movePopup = (e) => {
+    if (!isDragging) return;
+
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+
+    // Tính toán vị trí mới tương đối trong container
+    let newX = initialX + dx;
+    let newY = initialY + dy;
+
+    // Giới hạn trong phạm vi container
+    const popupWidth = popup.offsetWidth;
+    const popupHeight = popup.offsetHeight;
+
+    // Giới hạn trái
+    newX = Math.max(0, newX);
+    // Giới hạn phải
+    newX = Math.min(container.clientWidth - popupWidth, newX);
+    // Giới hạn trên
+    newY = Math.max(0, newY);
+    // Giới hạn dưới
+    newY = Math.min(container.clientHeight - popupHeight, newY);
+
+    popup.style.left = `${newX}px`;
+    popup.style.top = `${newY}px`;
+    popup.style.transform = 'none';
+  };
+
+  // Sử dụng requestAnimationFrame để mượt mà
+  const smoothMove = (e) => {
+    requestAnimationFrame(() => movePopup(e));
+  };
+
+  document.addEventListener('mousemove', smoothMove);
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+
+    isDragging = false;
+    header.style.cursor = 'move';
+    popup.style.userSelect = 'auto';
+
+    // Kích hoạt lại transition khi kết thúc kéo
+    setTimeout(() => {
+      popup.style.transition = 'transform 0.2s ease-out';
+    }, 10);
+  });
+
+  // Nút đóng popup
+  popup.querySelector("#closePopupBtn").addEventListener('click', page.fn.closeComment);
+};
+
+page.fn.closeComment = function() {
+  const popup = document.getElementById("commentPopup");
+  if (popup) {
+    popup.style.opacity = "0";
+    popup.style.transform = "translate(-50%, -50%) scale(0.9)";
+    setTimeout(() => {
+      document.body.removeChild(popup);
+      page.dom.btnShowComment.removeClass("on");
+    }, 300);
+  }
+};
+
+page.fn.submitComment = function () {
+  const text = document.getElementById("commentText").value.trim();
+  if (text) {
+    console.log("Comment submitted:", text);
+    //hidden
+    let fileName = page.data.currentImage.originalFileName;
+    // page.fn.saveComment(text, fileName)
+    // TODO: Gửi lên server hoặc xử lý nội bộ
+      let data = new Object();
+      data.contents = text;
+      data.orgnFileName = fileName;
+      let param = {
+        url : "/annotate/saveComment"
+        , param : data
+        , returnFunction : function(rev){
+          if (rev.result) {
+            // location.reload();
+            // page.fn.viewDetailInfo()
+          } else {
+            console.log('Failed to save comment');
+          }
+        }
+      };
+      _common.ajax.asyncJSON2(param);
+  }
+  page.fn.closeComment();
+};
+
 page.fn.convertReqType = function() {
   let reqType = page.constants.permission.reviewer;
   if("review/reviewer".includes(page.data.param.reqType)) {
@@ -4803,5 +5031,7 @@ page.fn.renderAllKeypoint = function () {
       });
     }
   });
+
+
 
 }

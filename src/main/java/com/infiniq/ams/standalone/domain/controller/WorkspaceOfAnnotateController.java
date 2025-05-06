@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -51,6 +52,26 @@ public class WorkspaceOfAnnotateController {
             r.setResult(false);
         }
 
+        return r;
+    }
+
+    @RequestMapping(value = {"/getComment"}, method = {RequestMethod.GET, RequestMethod.POST})
+    @ResponseBody
+    public CommonResponseVo<List<Map<String,Object>>> getComment(HttpServletRequest request){
+        log.info("##########################################/apis/v1/workspace/annotate/getComment##########################################");
+        CommonResponseVo<List<Map<String,Object>>> r = new CommonResponseVo<>();
+        try{
+            HttpSession                   session     = request.getSession();
+            TaskVo                        sessionTask = (TaskVo) session.getAttribute(TASK_INFO_KEY);
+            List<Map<String,Object>> listComment = workspaceOfAnnotateService.getComment(sessionTask);
+
+            r.setResult(true);
+            r.setData(listComment);
+        } catch (Exception e) {
+            log.info(e.getMessage());
+            r.setMessage("유효하지 않은 데이터입니다.");
+            r.setResult(false);
+        }
         return r;
     }
 
@@ -94,7 +115,7 @@ public class WorkspaceOfAnnotateController {
             r.setResult(result);
         } catch (Exception e) {
             log.info(e.getMessage());
-            r.setMessage("유효하지 않은 데이터입니다.");
+            r.setMessage("Invalid data.");
             r.setResult(false);
         }
 

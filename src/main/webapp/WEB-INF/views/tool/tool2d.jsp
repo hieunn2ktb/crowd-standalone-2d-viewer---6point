@@ -200,17 +200,18 @@
         page.message.history.reviewStatus = "<spring:message code="label.tool.history.reviewStatus"/>";
         page.message.history.none =  '<spring:message code="label.tool.history.none"/>'
         page.hotkey = [
+            <%--{--%>
+            <%--    keyCode : "112" //F1--%>
+            <%--    , keyName : "F1"--%>
+            <%--    , excuteFunction : function() {--%>
+            <%--        page.fn.toggleGuide();--%>
+            <%--    }, type : page.constants.hotkeyType.defaultKey--%>
+            <%--    , description: '<spring:message code="button.tool.image.ann.viewGuide" />'--%>
+            <%--    , isVisible : true--%>
+            <%--    , isCheckPermission : false--%>
+            <%--    , isCanInput : false--%>
+            <%--},--%>
             {
-                keyCode : "112" //F1
-                , keyName : "F1"
-                , excuteFunction : function() {
-                    page.fn.toggleGuide();
-                }, type : page.constants.hotkeyType.defaultKey
-                , description: '<spring:message code="button.tool.image.ann.viewGuide" />'
-                , isVisible : true
-                , isCheckPermission : false
-                , isCanInput : false
-            }, {
                 keyCode : "113" //F2
                 , keyName : "F2"
                 , excuteFunction : function() {
@@ -221,26 +222,38 @@
                 , isCheckPermission : false
                 , isCanInput : false
             }, {
-                keyCode : "114" //F3
-                , keyName : "F3"
+                keyCode : "112"
+                , keyName : "F1"
                 , excuteFunction : function() {
-                    page.fn.gotoDetailView();
+                    page.fn.showComment();
                 }, type : page.constants.hotkeyType.defaultKey
-                , description: '<spring:message code="button.tool.image.review.moveToDetailReview" />'
+                , description: 'Show/Hide Comment'
                 , isVisible : true
                 , isCheckPermission : false
                 , isCanInput : false
-            }, {
-                keyCode : "115" //F4
-                , keyName : "F4"
-                , excuteFunction : function() {
-                    page.fn.gotoDetailViewNew();
-                }, type : page.constants.hotkeyType.defaultKey
-                , description: '<spring:message code="button.tool.image.review.moveToDetailReview" />'
-                , isVisible : true
-                , isCheckPermission : false
-                , isCanInput : false
-            }, {
+            },
+            <%--{--%>
+            <%--    keyCode : "114" //F3--%>
+            <%--    , keyName : "F3"--%>
+            <%--    , excuteFunction : function() {--%>
+            <%--        page.fn.gotoDetailView();--%>
+            <%--    }, type : page.constants.hotkeyType.defaultKey--%>
+            <%--    , description: '<spring:message code="button.tool.image.review.moveToDetailReview" />'--%>
+            <%--    , isVisible : true--%>
+            <%--    , isCheckPermission : false--%>
+            <%--    , isCanInput : false--%>
+            <%--}, {--%>
+            <%--    keyCode : "115" //F4--%>
+            <%--    , keyName : "F4"--%>
+            <%--    , excuteFunction : function() {--%>
+            <%--        page.fn.gotoDetailViewNew();--%>
+            <%--    }, type : page.constants.hotkeyType.defaultKey--%>
+            <%--    , description: '<spring:message code="button.tool.image.review.moveToDetailReview" />'--%>
+            <%--    , isVisible : true--%>
+            <%--    , isCheckPermission : false--%>
+            <%--    , isCanInput : false--%>
+            <%--},--%>
+            {
                 keyCode : "116" //F4
                 , keyName : "F5"
                 , excuteFunction : function() {
@@ -377,6 +390,7 @@
                     if(rev && rev.result) {
                         _pre_loader_2d_data(rev.data);
                         _pre_loader_hotkey();
+                        _pre_loader_comment();
                         page.fn.init();
                         page.fn.hideLoading();
                     }
@@ -385,6 +399,33 @@
             _common.ajax.asyncJSON2(param);
         });
 
+        const _pre_loader_comment = function() {
+            page.imageCommentMap = new Map();
+            _common.ajax.token_front = page.param.token;
+            _common.ajax.api_host = "${frontApiUrl}";
+            let param = {
+                url : "/annotate/getComment",
+                param: {},
+                returnFunction: function(res) {
+                    if(res && res.result && Array.isArray(res.data)){
+                        res.data.forEach(function(comment) {
+                            const fileName = comment.fileName;
+                            if(!page.imageCommentMap.has(fileName)){
+                                page.imageCommentMap.set(fileName, []);
+                            }
+                            page.imageCommentMap.get(fileName).push({
+                                content: comment.content,
+                                register_datetime: comment.register_datetime
+                            });
+                        });
+                        console.log("Image comments loaded", page.imageCommentMap);
+                    } else {
+                        console.warn("No comments found or invalid response");
+                    }
+                }
+            };
+            _common.ajax.asyncJSON2(param)
+        }
         /**
          * pre loader of project and task data
          * @param data
@@ -413,6 +454,7 @@
                 page.constants.userLocation = _common.nvl(data.userLocation, "kr");
                 page.constants.currentLocale = _common.nvl(data.country, "kr");
                 page.constants.isReviewer = _common.nvl(data.isReviewer, true);
+
                 page.constants.imageServer = [];
                 for (let i = 0; i < data.imageServers.length; i++) {
                     let imgServerUrl = data.imageServers[i].url;
@@ -1010,14 +1052,22 @@
         <div class="header-right">
             <h3 class="a11y-hidden"><spring:message code="label.tool.image.review.configArea" /></h3>
 
-            <c:if test="${param.reqType != 'co'}">
-                <button type="button"
-                        class="material-icons materialBtns help btn-m-guide btn-invalid-co"
-                        id="btnTogglePopupGuide"
-                        hotkey="F1"
-                        title="<spring:message code="button.tool.image.ann.viewGuide" />"
-                        onclick="page.fn.toggleGuide();">help</button>
-            </c:if>
+<%--            <c:if test="${param.reqType != 'co'}">--%>
+<%--                <button type="button"--%>
+<%--                        class="material-icons materialBtns help btn-m-guide btn-invalid-co"--%>
+<%--                        id="btnTogglePopupGuide"--%>
+<%--                        hotkey="F1"--%>
+<%--                        title="<spring:message code="button.tool.image.ann.viewGuide" />"--%>
+<%--                        onclick="page.fn.toggleGuide();">help</button>--%>
+<%--            </c:if>--%>
+            <button type="button"
+                    class="btn-m-comment"
+                    onclick="page.fn.showComment();"
+                    id="btnShowComment"
+                    hotkey="F1"
+                    title="Comment"
+            >Comment</button>
+
             <button type="button"
                     class="btn-m-tag"
                     onclick="page.fn.toggleViewTag();"
@@ -1025,18 +1075,18 @@
                     hotkey="F2"
                     title="<spring:message code="button.tool.tagHint" />"
             ><spring:message code="button.tool.tag" /></button><!-- 활성화 on-->
-            <button type="button"
-                    class="btn-m-reviewDetail"
-                    onclick="page.fn.gotoDetailView();"
-                    hotkey="F3"
-                    title="<spring:message code="button.tool.image.review.moveToDetailReview" />"
-            ><spring:message code="button.tool.image.review.moveToDetailReview" /></button><!-- 활성화 on-->
-            <button type="button"
-                    class="material-icons btn-m"
-                    onclick="page.fn.gotoDetailViewNew();"
-                    hotkey="F4"
-                    title="<spring:message code="button.tool.image.review.moveToDetailReviewPopup" />"
-            >open_in_new</button>
+<%--            <button type="button"--%>
+<%--                    class="btn-m-reviewDetail"--%>
+<%--                    onclick="page.fn.gotoDetailView();"--%>
+<%--                    hotkey="F3"--%>
+<%--                    title="<spring:message code="button.tool.image.review.moveToDetailReview" />"--%>
+<%--            ><spring:message code="button.tool.image.review.moveToDetailReview" /></button><!-- 활성화 on-->--%>
+<%--            <button type="button"--%>
+<%--                    class="material-icons btn-m"--%>
+<%--                    onclick="page.fn.gotoDetailViewNew();"--%>
+<%--                    hotkey="F4"--%>
+<%--                    title="<spring:message code="button.tool.image.review.moveToDetailReviewPopup" />"--%>
+<%--            >open_in_new</button>--%>
             <button type="button"
                     class="material-icons btn-m"
                     onclick="page.fn.toggleAllObjectView();"
@@ -1462,8 +1512,10 @@
                             id="viewDetail_fileName"></span>
                         <div id="copyBtnDiv"></div>
                         <div class="title-tooltip" style="top:5px;width:240px;left: 5px;"></div></li>
-<%--                    <li><strong><spring:message code="label.tool.image.review.contents.fileStatus" /> : </strong> <span--%>
-<%--                            id="viewDetail_status"></span></li>--%>
+                    <li>
+                        <strong><spring:message code="label.tool.image.review.contents.comment" /> : </strong>
+                        <span id="viewDetail_comment"></span>
+                    </li>
 <%--                    <li><strong><spring:message code="label.tool.image.review.contents.worker" /> : </strong> <span--%>
 <%--                    ><span id="viewDetail_annotatorId"></span><strong> (<span--%>
 <%--                            id="viewDetail_failCount"></span>)</strong></span></li>--%>
