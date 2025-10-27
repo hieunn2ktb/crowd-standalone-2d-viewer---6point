@@ -76,22 +76,20 @@ public class ProjectService {
         //Retrieve the folder list, read the json export file
         File     dir        = new File(folderPath);
         String[] folderList = dir.list();
-        String cocoExportPath           = "";
+        String jsonPath           = "";
         assert folderList != null;
         for (String file : folderList) {
             if (file.contains(".json")) {
-                cocoExportPath = folderPath + File.separator + file;
+                jsonPath = folderPath + File.separator + file;
                 break;
             }
         }
         //Read json file
-        File            jsonFile        = new File(cocoExportPath);
+        File            jsonFile        = new File(jsonPath);
         FileInputStream inputStream = new FileInputStream(jsonFile);
         // Convert to JSON string using InputStream
         String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
                 .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-
-        //Parse JSON as a JSONArray (since the root is an array)
         JSONArray jsonArray;
         try {
             jsonArray = new JSONArray(jsonContent);
@@ -99,7 +97,6 @@ public class ProjectService {
             throw new JSONException("Invalid JSON format: Expected an array at root", e);
         }
 
-        // Set to store unique classes (replacing "categories")
         Set<String> classSet = new HashSet<>();
         List<JSONObject> allAnnotations = new ArrayList<>();
 
@@ -171,30 +168,13 @@ public class ProjectService {
                 //===========NEW =========================
                 // Create TagVo list dynamically
                 List<TagVo> tagList = new ArrayList<>();
-                //Dùng để tạo tag tự động
-//                for(String tagString: tagListString) {
-//                    TagVo tagVo = new TagVo();
-//                    tagVo.setProjectId(taskVo.getProjectId());
-//                    tagVo.setTaskId(taskVo.getTaskId());
-//                    tagVo.setTagId(idGenerateService.generateTagId());
-//                    tagVo.setTagName(tagString);
-//                    tagVo.setTagTypeCd("IMG");
-//                    tagVo.setTagValTypeCd("20");
-//                    tagVo.setColor(getRandomHexColor());
-//                    tagVo.setTagValueList(new ArrayList<>(tagValueMap.get(tagString)));
-//                    if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
-//                        tagVo.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
-//                        tagVo.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), tagVo, taskVo));
-//                    }
-//                    tagList.add(tagVo);
-//                }
 
                 //Dùng để hard code tạo tag cố định: trunc và occ
                 TagVo truncationTag = new TagVo();
                 truncationTag.setProjectId(taskVo.getProjectId());
                 truncationTag.setTaskId(taskVo.getTaskId());
                 truncationTag.setTagId(idGenerateService.generateTagId());
-                truncationTag.setTagName("Truncation");
+                truncationTag.setTagName("truncation");
                 truncationTag.setTagTypeCd("IMG");
                 truncationTag.setTagValTypeCd("20");
                 truncationTag.setColor("#0aa57d");
@@ -210,7 +190,7 @@ public class ProjectService {
                 occlusionTag.setProjectId(taskVo.getProjectId());
                 occlusionTag.setTaskId(taskVo.getTaskId());
                 occlusionTag.setTagId(idGenerateService.generateTagId());
-                occlusionTag.setTagName("Occlusion");
+                occlusionTag.setTagName("occlusion");
                 occlusionTag.setTagTypeCd("IMG");
                 occlusionTag.setTagValTypeCd("20");
                 occlusionTag.setColor("#b5eb8d");
@@ -245,13 +225,20 @@ public class ProjectService {
 
         // Count total files
         Path startPath = Paths.get(folderPath);
-        long fileCount;
+        long imageFileCount;
         try (Stream<Path> stream = Files.walk(startPath)) {
-            fileCount = stream
+            imageFileCount = stream
                     .filter(Files::isRegularFile)
+                    .filter(path -> {
+                        String imageFileName = path.getFileName().toString().toLowerCase();
+                        return imageFileName.endsWith(".jpg")
+                                || imageFileName.endsWith(".jpeg")
+                                || imageFileName.endsWith(".png")
+                                || imageFileName.endsWith(".gif");
+                    })
                     .count();
         }
-        Integer totalCont = Math.toIntExact(fileCount);
+        Integer totalCont = Math.toIntExact(imageFileCount);
         taskVo.setTotalCnt(totalCont);
 
         return taskVo;
@@ -274,7 +261,6 @@ public class ProjectService {
             String format = dateFormat.format(today);
             workTicketApiResponseVo.setCurrentDatetime(format);
 
-            // Get the "attributes" object (not array)
             try {
                 JSONObject attributes = annoObject.getJSONObject("attributes");
                 for(String tagName: tagListString){

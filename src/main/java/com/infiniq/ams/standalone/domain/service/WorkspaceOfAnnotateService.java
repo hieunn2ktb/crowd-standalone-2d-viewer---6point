@@ -30,7 +30,6 @@ public class WorkspaceOfAnnotateService {
     private String rootPath;
 
     private final IdGenerateService idGenerateService;
-    private final ObjectCopyHelper objectCopyHelper;
 
     public List<Map<String,Object>> getComment (TaskVo sessionTask) {
         List<Map<String, Object>> resultList = new ArrayList<>();
@@ -641,12 +640,13 @@ public class WorkspaceOfAnnotateService {
         String           format     = dateFormat.format(today);
 
         JSONObject jsonObject = new JSONObject();
-        jsonObject.put("file_name", taskVo.getOrgnFileName());
+        String fileName = sessionTask.getTaskName().substring(sessionTask.getTaskName().lastIndexOf("/") + 1)+ "_" + taskVo.getOrgnFileName();
+        jsonObject.put("file_name", fileName );
         jsonObject.put("comment", taskVo.getContents());
         jsonObject.put("register_datetime", format);
 
         // File name composition (add extension)
-        String jsonFileName = taskVo.getOrgnFileName().replace(".pcd", "") + ".json";
+        String jsonFileName = fileName + ".json";
         File jsonFile = new File(commentPath, jsonFileName);
 
         // Save JSON file
@@ -703,7 +703,6 @@ public class WorkspaceOfAnnotateService {
             }
 
         }
-
         return workTicketApiResponseVoList;
     }
 

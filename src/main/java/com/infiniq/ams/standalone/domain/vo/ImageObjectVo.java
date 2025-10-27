@@ -22,6 +22,7 @@ public class ImageObjectVo implements Comparable<ImageObjectVo> {
     private String    objectId;
     private String    imgObjectLocation;
     private String    objectLocation;
+    private String    objectBoundingBox;
     private String    objectTypeCd;
     private String    objectType;
     private String    statusOc;

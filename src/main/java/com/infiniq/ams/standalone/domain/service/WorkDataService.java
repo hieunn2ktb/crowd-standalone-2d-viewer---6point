@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.*;
+import java.math.BigDecimal;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
@@ -32,7 +33,6 @@ public class WorkDataService {
 
     private static final AtomicInteger OBJECT_COUNTER = new AtomicInteger(100000);
     private static final AtomicInteger TAG_COUNTER = new AtomicInteger(100000);
-    private static final AtomicInteger TAG_ID_GENERATOR = new AtomicInteger(100000);
 
     @Getter
     private int totalObj = 0;
@@ -234,84 +234,31 @@ public class WorkDataService {
         boolean hasSidePoints = isValidKeypoint(kp1) && isValidKeypoint(kp2) && isValidKeypoint(kp3) && isValidKeypoint(kp4);
         boolean hasFront = isValidKeypoint(kp5);
         boolean hasRear = isValidKeypoint(kp6);
-
-        if(hasSidePoints && !hasFront && !hasRear) {
+        if(kp5 == null && kp6 == null) {
             return "rect";
         }
-        if(!hasSidePoints && hasFront && !hasRear) {
-            return "drawCube2DFront";
-        }
-        if(!hasSidePoints && !hasFront && hasRear) {
-            return "drawCube2D";
-        }
-        if (hasSidePoints && hasFront && !hasRear) {
-            return "drawCube2DFront";
-        }
-        if (hasSidePoints && !hasFront && hasRear) {
-            return "drawCube2D";
-        }
-        if(kp7 != null && kp8 != null) {
+        else if(kp7 != null && kp8 != null) {
             return "keypoint";
         }
-        return "rect";
-    }
-
-    public double[] findFirstKeypointMatchingY(JSONObject keypoints, double targetY) {
-        for (int i = 1; i <= 6; i++) {
-            String keyName = "keypoint" + i;
-            JSONObject kp = keypoints.optJSONObject(keyName);
-
-            if (kp != null && kp.has("y") && kp.has("x")) {
-                double y = kp.getDouble("y");
-                double x = kp.getDouble("x");
-
-                if (Math.abs(y - targetY) < 0.001) {
-                    return new double[]{x, y}; // trả về tọa độ [x, y]
-                }
-            }
+        else if(!hasSidePoints && hasFront && !hasRear) {
+            return "draw6PointCube";
         }
-        return null;
-    }
-
-    private String determineDirection(JSONObject box, JSONObject keypoints) {
-        // Calculate the midpoint x-coordinate of the bounding box
-        double boxMidpointX = box.getDouble("x") + (box.getDouble("width") / 2.0);
-
-        // Calculate the average x-coordinate of valid keypoints
-        double sumX = 0.0;
-        int validKeypointCount = 0;
-
-        // Iterate through all keys in the JSONObject
-        for (String key : keypoints.keySet()) {
-            try {
-                JSONObject kp = keypoints.getJSONObject(key);
-                double x = kp.getDouble("x");
-                double y = kp.getDouble("y");
-
-                // Ignore invalid keypoints (e.g., x: -1, y: -1)
-                if (x >= 0 && y >= 0) {
-                    sumX += x;
-                    validKeypointCount++;
-                }
-            } catch (JSONException e) {
-                // Skip malformed keypoints
-                continue;
-            }
+        else if(!hasSidePoints && !hasFront && hasRear) {
+            return "draw6PointCube";
         }
-
-        // If no valid keypoints, return "unknown"
-        if (validKeypointCount == 0) {
-            return "unknown";
+        else if (hasSidePoints && hasFront && !hasRear) {
+            return "draw6PointCube";
         }
-
-        double avgX = sumX / validKeypointCount;
-
-        // Compare average x-coordinate of keypoints to the box's midpoint
-        if (avgX > boxMidpointX) {
-            return "right"; // Keypoints are biased toward the right side
-        } else {
-            return "left"; // Keypoints are biased toward the left side
+        else if (hasSidePoints && !hasFront && hasRear) {
+            return "draw6PointCube";
         }
+        else if (hasSidePoints && !hasFront && !hasRear) {
+            return "draw6PointCube";
+        }
+        else if (!hasSidePoints && !hasFront && !hasRear) {
+            return "draw6PointCube";
+        }
+        return "undefined";
     }
 
     private ImageObjectVo buildImageObjectVo(TaskVo task, ReviewImageVo imageVo, JSONObject ann, Map<String, Integer> classMap, int objectOrder) {
@@ -345,33 +292,43 @@ public class WorkDataService {
                     //object Location
                     String objectLocation = getObjectLocation(box, keypoints, objectType);
                     objectVo.setObjectLocation(objectLocation);
+                    //add bounding box (roi) for keypoint object
+                    if(objectType.equals("keypoint")){
+                        JSONObject boundingBox = new JSONObject().put("x", box.get("x")).put("y", box.get("y")).put("w", box.get("width")).put("h", box.get("height"));
+                        objectVo.setObjectBoundingBox(boundingBox.toString());
+                    }
+                    // Tags from attributes
+                    List<ImageObjectTagVo> tagList = new ArrayList<>();
+                    for (String key : attrs.keySet()) {
+                        Object value = attrs.opt(key);
+                        // chỉ lấy tag truncation và occlusion
+                        if (value == null || value.equals(0) || (!Objects.equals(key, "truncation") && !Objects.equals(key, "occlusion"))) continue;
+                        ImageObjectTagVo tag = new ImageObjectTagVo();
+                        tag.setProjectId(task.getProjectId());
+                        tag.setTaskId(task.getTaskId());
+                        tag.setWorkTicketId(imageVo.getWorkTicketId());
+                        tag.setObjectId(objectVo.getObjectId());
+                        tag.setTagName(key);
 
+                        String tagValue = value.toString();
+                        tag.setTagValueName(tagValue);
+                        tag.setVal(tagValue);
+                        tag.setColor(this.utilService.getTagColorByTagNameAndTagValue(key,tagValue));
+                        tag.setTagId(generateTagId());
+
+                        tagList.add(tag);
+                    }
+                    //get direction (front/rear) tag
+                    if(objectType != null && objectType == "draw6PointCube") {
+                        new ImageObjectTagVo();
+                        ImageObjectTagVo directionTag;
+                        directionTag = getDirectionTag(task, imageVo, objectVo, keypoints);
+                        if (directionTag != null) {
+                            tagList.add(directionTag);
+                        }
+                    }
+                    objectVo.setTagList(tagList);
                 }
-
-                // Tags from attributes comment tag cho đỡ lag
-                List<ImageObjectTagVo> tagList = new ArrayList<>();
-                for (String key : attrs.keySet()) {
-                    Object value = attrs.opt(key);
-                    // chỉ lấy tag truncation và occlusion
-                    if (value == null || value.equals(0) || (!Objects.equals(key, "truncation") && !Objects.equals(key, "occlusion"))) continue;
-
-                    ImageObjectTagVo tag = new ImageObjectTagVo();
-                    tag.setProjectId(task.getProjectId());
-                    tag.setTaskId(task.getTaskId());
-                    tag.setWorkTicketId(imageVo.getWorkTicketId());
-                    tag.setObjectId(objectVo.getObjectId());
-                    tag.setTagName(key);
-
-                    String tagValue = value.toString();
-                    tag.setTagValueName(tagValue);
-                    tag.setVal(tagValue);
-                    tag.setColor(this.utilService.getTagColorByTagNameAndTagValue(key,tagValue));
-                    tag.setTagId(generateTagId());
-
-                    tagList.add(tag);
-                }
-                objectVo.setTagList(tagList);
-
             } catch (JSONException e) {
                 System.err.println("Missing 'class' in annotation: " + e.getMessage());
             }
@@ -379,15 +336,65 @@ public class WorkDataService {
         return objectVo;
     }
 
+    private ImageObjectTagVo getDirectionTag(TaskVo task, ReviewImageVo imageVo,ImageObjectVo objectVo,JSONObject keypoints) {
+        JSONObject kp5 = keypoints.optJSONObject("keypoint5");
+        JSONObject kp6 = keypoints.optJSONObject("keypoint6");
+
+        if(isValidKeypoint(kp5) && !isValidKeypoint(kp6)) {
+            return ImageObjectTagVo.builder()
+                    .projectId(task.getProjectId())
+                    .taskId(task.getTaskId())
+                    .workTicketId(imageVo.getWorkTicketId())
+                    .objectId(objectVo.getObjectId())
+                    .tagName("direction")
+                    .tagValueName("front")
+                    .val("front")
+                    .color("#76ddee")
+                    .tagId(generateTagId())
+                    .build();
+        }
+        else if (!isValidKeypoint(kp5) && isValidKeypoint(kp6)){
+            return ImageObjectTagVo.builder()
+                    .projectId(task.getProjectId())
+                    .taskId(task.getTaskId())
+                    .workTicketId(imageVo.getWorkTicketId())
+                    .objectId(objectVo.getObjectId())
+                    .tagName("direction")
+                    .tagValueName("rear")
+                    .val("rear")
+                    .color("#ffc654")
+                    .tagId(generateTagId())
+                    .build();
+        }
+        else if (!isValidKeypoint(kp5) && !isValidKeypoint(kp6)){
+            return ImageObjectTagVo.builder()
+                    .projectId(task.getProjectId())
+                    .taskId(task.getTaskId())
+                    .workTicketId(imageVo.getWorkTicketId())
+                    .objectId(objectVo.getObjectId())
+                    .tagName("direction")
+                    .tagValueName("side")
+                    .val("side")
+                    .color("#008000")
+                    .tagId(generateTagId())
+                    .build();
+        }
+        return null;
+    }
+
+    private boolean isLeftSide(double x, double w, JSONObject sidePoint) {
+        double cx = ((x + w) + x) / 2;
+        double sideX = ((BigDecimal) sidePoint.get("x")).doubleValue();
+        return cx <= sideX;
+    }
+
+
     private String getObjectLocation(JSONObject box, JSONObject keypoints, String objectType) {
-
         JSONArray objectLocation = new JSONArray();
-
             double x = box.optDouble("x");
             double y = box.optDouble("y");
             double w = box.optDouble("width");
             double h = box.optDouble("height");
-
             JSONObject kp1 = keypoints.optJSONObject("keypoint1");
             JSONObject kp2 = keypoints.optJSONObject("keypoint2");
             JSONObject kp3 = keypoints.optJSONObject("keypoint3");
@@ -397,14 +404,212 @@ public class WorkDataService {
             JSONObject kp7 = keypoints.optJSONObject("keypoint7");
             JSONObject kp8 = keypoints.optJSONObject("keypoint8");
 
-            //nếu objectType là "keypoint" thì có 8 điểm
+        //nếu objectType là "rect", không có tọa độ boxSide
+        if(objectType.equals("rect")) {
+            JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
+            JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
+            objectLocation.put(p1);
+            objectLocation.put(p2);
+            return objectLocation.toString();
+        }
+
+        if(objectType.equals("draw6PointCube")) {
+            // case : front
+            if(isValidKeypoint(kp5) && !isValidKeypoint(kp6)) {
+                boolean leftSide = isLeftSide(x, w, kp5);
+                // -> front + left side
+                if( leftSide) {
+                    // create function to handle fake x, y for kp 1, 2, 3, 4
+                    if(!isValidKeypoint(kp1)){
+                        kp1.put("x", 2 * (kp5.getDouble("x")) - x);
+                        kp1.put("y", y);
+                    }
+
+                    if(!isValidKeypoint(kp2)){
+                        kp2.put("x", kp1.get("x"));
+                        kp2.put("y", y + h);
+                    }
+                    if(!isValidKeypoint(kp3)){
+                        kp3.put("x", x );
+                        kp3.put("y", y + h);
+                    }
+
+                    if(!isValidKeypoint(kp4)){
+                        kp4.put("x", x);
+                        kp4.put("y", y);
+                    }
+                    JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p7 = new JSONArray().put(x + w).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p8 = new JSONArray().put(x).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p4 = new JSONArray().put(kp3.get("x")).put(kp3.get("y")).put(isValidKeypoint(kp3) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p5 = new JSONArray().put(kp4.get("x")).put(kp4.get("y")).put(isValidKeypoint(kp4) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p3 = new JSONArray().put(kp2.get("x")).put(kp2.get("y")).put(isValidKeypoint(kp2) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p6 = new JSONArray().put(kp1.get("x")).put(kp1.get("y")).put(isValidKeypoint(kp1) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    objectLocation.put(p1);
+                    objectLocation.put(p2);
+                    objectLocation.put(p3);
+                    objectLocation.put(p4);
+                    objectLocation.put(p5);
+                    objectLocation.put(p6);
+                    objectLocation.put(p7);
+                    objectLocation.put(p8);
+                    return objectLocation.toString();
+                }
+                else {
+                    if(!isValidKeypoint(kp1)){
+                        kp1.put("x", (3 * x )+ (2 * w ) - (2 * (kp5.getDouble("x"))));
+                        kp1.put("y", y);
+                    }
+
+                    if(!isValidKeypoint(kp2)){
+                        kp2.put("x", kp1.get("x"));
+                        kp2.put("y", y + h);
+                    }
+                    if(!isValidKeypoint(kp3)){
+                        kp3.put("x", x + w );
+                        kp3.put("y", y + h);
+                    }
+
+                    if(!isValidKeypoint(kp4)){
+                        kp4.put("x", x + w);
+                        kp4.put("y", y);
+                    }
+
+                    JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p7 = new JSONArray().put(x + w).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p8 = new JSONArray().put(x).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p4 = new JSONArray().put(kp3.get("x")).put(kp3.get("y")).put(isValidKeypoint(kp3) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p5 = new JSONArray().put(kp4.get("x")).put(kp4.get("y")).put(isValidKeypoint(kp4) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p3 = new JSONArray().put(kp2.get("x")).put(kp2.get("y")).put(isValidKeypoint(kp2) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p6 = new JSONArray().put(kp1.get("x")).put(kp1.get("y")).put(isValidKeypoint(kp1) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    objectLocation.put(p1);
+                    objectLocation.put(p2);
+                    objectLocation.put(p3);
+                    objectLocation.put(p4);
+                    objectLocation.put(p5);
+                    objectLocation.put(p6);
+                    objectLocation.put(p7);
+                    objectLocation.put(p8);
+                    return objectLocation.toString();
+                }
+            }
+            // case : rear
+//            else {
+            if( !isValidKeypoint(kp5) && isValidKeypoint(kp6)){
+                boolean leftSide = isLeftSide(x, w, kp6);
+                if(!isValidKeypoint(kp1) && !isValidKeypoint(kp2) && !isValidKeypoint(kp3) && !isValidKeypoint(kp4) && !isValidKeypoint(kp5)){
+                    JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    objectLocation.put(p1);
+                    objectLocation.put(p2);
+                    return objectLocation.toString();
+                }
+                if( leftSide ) {
+                    // create function to handle fake x, y for kp 1, 2, 3, 4
+                    if(!isValidKeypoint(kp1)){
+                        kp1.put("x", 2 * (kp6.getDouble("x")) - (x + w));
+                        kp1.put("y", y);
+                    }
+
+                    if(!isValidKeypoint(kp2)){
+                        kp2.put("x", kp1.get("x"));
+                        kp2.put("y", y + h);
+                    }
+                    if(!isValidKeypoint(kp3)){
+                        kp3.put("x", x );
+                        kp3.put("y", y + h);
+                    }
+
+                    if(!isValidKeypoint(kp4)){
+                        kp4.put("x", x);
+                        kp4.put("y", y);
+                    }
+                    JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p7 = new JSONArray().put(x + w).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p8 = new JSONArray().put(x).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p4 = new JSONArray().put(kp3.get("x")).put(kp3.get("y")).put(isValidKeypoint(kp3) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p5 = new JSONArray().put(kp4.get("x")).put(kp4.get("y")).put(isValidKeypoint(kp4) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p3 = new JSONArray().put(kp2.get("x")).put(kp2.get("y")).put(isValidKeypoint(kp2) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p6 = new JSONArray().put(kp1.get("x")).put(kp1.get("y")).put(isValidKeypoint(kp1) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    objectLocation.put(p1);
+                    objectLocation.put(p2);
+                    objectLocation.put(p3);
+                    objectLocation.put(p4);
+                    objectLocation.put(p5);
+                    objectLocation.put(p6);
+                    objectLocation.put(p7);
+                    objectLocation.put(p8);
+                    return objectLocation.toString();
+                }
+                if( !leftSide ) {
+                    // create function to handle fake x, y for kp 1, 2, 3, 4
+                    if(!isValidKeypoint(kp1)){
+                        kp1.put("x", (3 * x )+ (2 * w ) - (2 * (kp6.getDouble("x"))));
+                        kp1.put("y", y);
+                    }
+
+                    if(!isValidKeypoint(kp2)){
+                        kp2.put("x", kp1.get("x"));
+                        kp2.put("y", y + h);
+                    }
+                    if(!isValidKeypoint(kp3)){
+                        kp3.put("x", x + w );
+                        kp3.put("y", y + h);
+                    }
+
+                    if(!isValidKeypoint(kp4)){
+                        kp4.put("x", x);
+                        kp4.put("y", y);
+                    }
+                    JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p7 = new JSONArray().put(x + w).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p8 = new JSONArray().put(x).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p4 = new JSONArray().put(kp3.get("x")).put(kp3.get("y")).put(isValidKeypoint(kp3) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p5 = new JSONArray().put(kp4.get("x")).put(kp4.get("y")).put(isValidKeypoint(kp4) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    JSONArray p3 = new JSONArray().put(kp2.get("x")).put(kp2.get("y")).put(isValidKeypoint(kp2) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+                    JSONArray p6 = new JSONArray().put(kp1.get("x")).put(kp1.get("y")).put(isValidKeypoint(kp1) ? 1 : 0).put(UUID.randomUUID().toString().substring(0, 10));
+
+                    objectLocation.put(p1);
+                    objectLocation.put(p2);
+                    objectLocation.put(p3);
+                    objectLocation.put(p4);
+                    objectLocation.put(p5);
+                    objectLocation.put(p6);
+                    objectLocation.put(p7);
+                    objectLocation.put(p8);
+                    return objectLocation.toString();
+                }
+            }
+            // case : side only
+            if(!isValidKeypoint(kp5) && !isValidKeypoint(kp6) ) {
+                JSONArray p1 = new JSONArray().put(x).put(y + h).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                JSONArray p2 = new JSONArray().put(x + w).put(y).put(1).put(UUID.randomUUID().toString().substring(0, 10));
+                objectLocation.put(p1);
+                objectLocation.put(p2);
+                return objectLocation.toString();
+            }
+        }
+
+        //nếu objectType là "keypoint" thì có 8 điểm
         if (objectType.equals("keypoint")) {
-
             JSONObject[] keypointsArray = {kp1, kp2, kp3, kp4, kp5, kp6, kp7, kp8};
-
             int index = 1; // index bắt đầu từ 1
             int objectOrder = 10; // fixed objectOrder
-
             for (JSONObject kp : keypointsArray) {
                 if (kp != null) {
                     double px = kp.optDouble("x", -1);
@@ -429,78 +634,8 @@ public class WorkDataService {
                 }
                 index++;
             }
-
             return objectLocation.toString();
         }
-
-            //nếu objectType là "rect", không có tọa độ boxSide
-            if(objectType.equals("rect")) {
-                JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
-                JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
-                objectLocation.put(p1);
-                objectLocation.put(p2);
-                return objectLocation.toString();
-            }
-
-            //nếu 4 điểm đầu là (-1,-1) thì không cần lấy tọa độ boxSide
-            if((objectType.equals("drawCube2D") || objectType.equals("drawCube2DFront")) && !isValidKeypoint(kp1)
-                    && !isValidKeypoint(kp2) && !isValidKeypoint(kp3) && !isValidKeypoint(kp4)) {
-                JSONArray p1 = new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10));
-                JSONArray p2 = new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10));
-                objectLocation.put(p1);
-                objectLocation.put(p2);
-                return objectLocation.toString();
-            }
-
-            String determineDirection = determineDirection(box,keypoints);
-            //nếu là side bên phải sẽ lấy 2 tọa độ khác
-            if(determineDirection.equals("right")) {
-
-                JSONArray topLeft = new JSONArray()
-                        .put(x)
-                        .put(y)
-                        .put(UUID.randomUUID().toString().substring(0, 10));
-                objectLocation.put(topLeft);
-
-                //tìm điểm có tọa độ y trùng với tọa độ y của box
-                double[] matched = findFirstKeypointMatchingY(keypoints, y + h);
-                if (matched != null) {
-                    JSONArray bottomRight = new JSONArray()
-                            .put(matched[0])
-                            .put(matched[1])
-                            .put(UUID.randomUUID().toString().substring(0, 10));
-                    objectLocation.put(bottomRight);
-                }
-                //nếu là side bên trái sẽ lấy 2 tọa độ khác
-            } else if(determineDirection.equals("left")){
-                double[] matched = findFirstKeypointMatchingY(keypoints,y);
-                if (matched != null) {
-                    JSONArray bottomRight = new JSONArray()
-                            .put(matched[0])
-                            .put(matched[1])
-                            .put(UUID.randomUUID().toString().substring(0, 10));
-                    objectLocation.put(bottomRight);
-                }
-                JSONArray topLeft = new JSONArray()
-                        .put(x + w)
-                        .put(y + h)
-                        .put(UUID.randomUUID().toString().substring(0, 10));
-                objectLocation.put(topLeft);
-            }
-
-            // Phần tử thứ 2 của objectLocation: tọa độ các điểm cạnh (boxSide)
-            JSONObject boxSide = new JSONObject();
-            boxSide.put("x1", kp1.getDouble("x"));
-            boxSide.put("y1", kp1.getDouble("y"));
-            boxSide.put("x2", kp2.getDouble("x"));
-            boxSide.put("y2", kp2.getDouble("y"));
-            boxSide.put("x3", kp3.getDouble("x"));
-            boxSide.put("y3", kp3.getDouble("y"));
-            boxSide.put("x4", kp4.getDouble("x"));
-            boxSide.put("y4", kp4.getDouble("y"));
-
-            boxSide.put("direction", determineDirection);
-            objectLocation.put(boxSide);
             return objectLocation.toString();
     }
 
@@ -554,7 +689,6 @@ public class WorkDataService {
         }
 
         JSONArray jsonArray = getJsonArray(fileName);
-
         for (TagVo tagVo : classVo.getClassTagList()) {
             String tagName = tagVo.getTagName().equals("side") ? "direction" : tagVo.getTagName();
             for (int i = 0; i < jsonArray.length(); i++) {
@@ -563,10 +697,11 @@ public class WorkDataService {
                     JSONArray objects = frame.getJSONArray("objects");
                     for (int j = 0; j < objects.length(); j++) {
                         JSONObject obj = objects.getJSONObject(j);
-                        String jsonClassName = obj.getString("class");
-                        if (!jsonClassName.equals(className)) continue;
-
                         JSONObject attributes = obj.optJSONObject("attributes");
+                        int outerType = obj.getInt("type");
+                        int innerType = attributes.getInt("type");
+                        String jsonClassName = this.utilService.getClassName(outerType, innerType);
+                        if (!jsonClassName.equals(className)) continue;
                         if (attributes != null && attributes.has(tagName)) {
                             String attributeVal = String.valueOf(attributes.get(tagName));
                             for (TagClassVo tagClassVo : tagVo.getTagList()) {
@@ -671,10 +806,9 @@ public class WorkDataService {
         truncationTag.setProjectId(taskVo.getProjectId());
         truncationTag.setTaskId(taskVo.getTaskId());
         truncationTag.setTagId(idGenerateService.generateTagId());
-        truncationTag.setTagName("Truncation");
+        truncationTag.setTagName("truncation");
         truncationTag.setTagTypeCd("OBJ");
         truncationTag.setTagValTypeCd("20");
-//        truncationTag.setColor(getRandomHexColor());
         truncationTag.setMatchClass(String.join(", ", classIdList));
         tagList.add(truncationTag);
 
@@ -683,13 +817,11 @@ public class WorkDataService {
         occlusionTag.setProjectId(taskVo.getProjectId());
         occlusionTag.setTaskId(taskVo.getTaskId());
         occlusionTag.setTagId(idGenerateService.generateTagId());
-        occlusionTag.setTagName("Occlusion");
+        occlusionTag.setTagName("occlusion");
         occlusionTag.setTagTypeCd("OBJ");
         occlusionTag.setTagValTypeCd("20");
-//        occlusionTag.setColor(getRandomHexColor());
         occlusionTag.setMatchClass(String.join(", ", classIdList));
         tagList.add(occlusionTag);
-
         return tagList;
     }
 
@@ -698,26 +830,6 @@ public class WorkDataService {
         Map<String, Integer> classMap = extractClassMap(jsonArray);
         Integer classId = classMap.get(className);
         return classId != null ? String.valueOf(classId) : null;
-    }
-
-    //helper method to get the classId based on className
-    private String retrieveClassIdCoco (String className, JSONObject cocoJSON) {
-        JSONArray classes = cocoJSON.getJSONArray("categories");
-        if (classes != null && classes.isEmpty()) {
-            return null;
-        }
-        for (Object cls : classes) {
-            if (cls instanceof JSONObject) {
-                JSONObject classObj = (JSONObject) cls;
-                if (classObj.has("name") && classObj.has("id")) {
-                    String comparedName = classObj.getString("name");
-                    if (comparedName.equals(className)) {
-                        return String.valueOf(classObj.get("id")); // Return classId as String
-                    }
-                }
-            }
-        }
-        return null;
     }
 
     public List<String> getImagePaths(String folderPath) throws Exception {
@@ -764,18 +876,6 @@ public class WorkDataService {
         return "dobj" + OBJECT_COUNTER.getAndIncrement();
     }
 
-    private List<String> getClassIdList(TaskVo taskVo) {
-        List<String> idList = new ArrayList<>();
-        if(taskVo != null && taskVo.getClassVoList() !=  null) {
-            for( ClassVo classVo : taskVo.getClassVoList()){
-                if(classVo != null && classVo.getClassId() != null) {
-                    idList.add(classVo.getClassId());
-                }
-            }
-        }
-        return idList;
-    }
-
     private String findClassIdyClassName(TaskVo taskVo, String inputClassName) {
         if(taskVo == null || taskVo.getClassVoList() == null || inputClassName == null) {
             return null;
@@ -787,7 +887,4 @@ public class WorkDataService {
         }
         return null;
     }
-
-
-
 }

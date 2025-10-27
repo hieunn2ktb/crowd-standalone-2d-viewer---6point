@@ -128,13 +128,11 @@ public class ViewController {
             // prepare project data for showing information
             TaskVo taskVo     = projectService.getProjectInfo(fileName);
             List<ReviewImageVo>  workedList = workDataService.getWorkedList(taskVo, fileName);
-
+            taskVo.setTotalObj(workDataService.getTotalObj());
             session.setAttribute(TASK_INFO_KEY, taskVo);
             session.setAttribute(FILE_NAME_KEY, fileName);
             session.setAttribute(DATA_LIST_KEY, workedList);
             // prepare work data for opening tool
-            taskVo.setTotalObj(workDataService.getTotalObj());
-
             res.setData(taskVo);
             res.setResult(true);
         } catch (Exception e) {
@@ -176,6 +174,7 @@ public class ViewController {
             String fileName = session.getAttribute(FILE_NAME_KEY).toString();
 
             ClassVo classTagList = workDataService.getClassTagList(className, taskVo, fileName);
+//            ClassVo classTagList = new ClassVo();
 
             res.setData(classTagList);
             res.setResult(true);
@@ -196,6 +195,7 @@ public class ViewController {
             TaskVo      taskVo   = (TaskVo) session.getAttribute(TASK_INFO_KEY);
 
             List<TagVo> tagList  = workDataService.getTagList(classId,folderPath,taskVo);
+//            List<TagVo> tagList  = new ArrayList<>();
 
             res.setData(tagList);
             res.setResult(true);

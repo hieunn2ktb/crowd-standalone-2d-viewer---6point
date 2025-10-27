@@ -56,6 +56,23 @@
             stroke: #fcf63c;
         }
     </style>
+    <style>
+        #rootImageListData {
+            max-height: 300px;
+            overflow-y: auto;
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            border: 1px solid #ccc;
+        }
+        #rootImageListData li {
+            padding: 6px 10px;
+            cursor: pointer;
+        }
+        #rootImageListData li:hover {
+            background-color: #f0f0f0;
+        }
+    </style>
     <style id="style_circle_color_start">
         svg circle.polyline-point.point-start {
             stroke: #fc3c3c;
@@ -95,7 +112,6 @@
         gtag('js', new Date());
         gtag('config', 'UA-174572993-1');
     </script>
-
     <script>
         page.constants.defaultImageStatus
             = "${ param.reqType == null || param.reqType == 'reviewer' ? 'filter_status_rvassign' : 'filter_status_all' }";
@@ -226,6 +242,17 @@
                 , keyName : "F1"
                 , excuteFunction : function() {
                     page.fn.showComment();
+                }, type : page.constants.hotkeyType.defaultKey
+                , description: 'Show/Hide Comment'
+                , isVisible : true
+                , isCheckPermission : false
+                , isCanInput : false
+            },
+            {
+                keyCode : "9"
+                , keyName : "TAB"
+                , excuteFunction : function() {
+                    page.fn.nextInspObjectHighlight();
                 }, type : page.constants.hotkeyType.defaultKey
                 , description: 'Show/Hide Comment'
                 , isVisible : true
@@ -565,7 +592,6 @@
                 page.data.task.keypointMap = new HashMap();
                 page.data.magicKeypointNumber = null;
                 //keypoints
-
                 // Khởi tạo keypoint template giả
                 const dummyKeypointId = "dummyKeypointId";
 
@@ -578,6 +604,16 @@
                 if (!page.data.task.keypointMap) {
                     page.data.task.keypointMap = new HashMap();
                 }
+                const keypointNames = [
+                    "head",
+                    "left_shoulder",
+                    "right_shoulder",
+                    "left_hand",
+                    "right_hand",
+                    "pelvis",
+                    "left_foot",
+                    "right_foot"
+                ];
 
                 // 3. Tạo KeypointVo giả
                 let dummyKeypointVo = {
@@ -592,27 +628,40 @@
                     defaultRadius: 10,
                     magicYn: "N"
                 };
+                const keypointColors = [
+                    "#FF0000", // Keypoint 1 - head
+                    "#FFBB00", // Keypoint 2 - left_shoulder
+                    "#FFF612", // Keypoint 3 - right_shoulder
+                    "#006F00", // Keypoint 4 - left_hand
+                    "#00D8FF", // Keypoint 5 - right_hand
+                    "#5F00FF", // Keypoint 6 - pelvis
+                    "#0054FF", // Keypoint 7 - left_foot
+                    "#1DDB16"  // Keypoint 8 - right_foot
+                ];
 
-                // 4. Gán position giả (8 điểm, id từ 1 -> 8)
+                // 4. Gán position (8 điểm)
                 for (let i = 1; i <= 8; i++) {
                     dummyKeypointVo.position.push([
                         0, 0, // x, y mặc định là (0, 0)
                         i,   // index: 1..8
                         2,   // visibility: default = 2
-                        "p" + i, // name: p1, p2, ...
-                        (i-1).toString(), // order: "0", "1", ...
-                        "#ff0000" // color: đỏ cho dễ nhìn
+                        keypointNames[i - 1], // name: p1, p2, ...
+                        (i - 1).toString(), // order: "0", "1", ...
+                        keypointColors[i - 1] // color riêng từng keypoint
                     ]);
                 }
 
-                // 5. Gán relationship giả (nối điểm liên tiếp 1-2, 2-3,...)
-                for (let i = 1; i < 8; i++) {
-                    dummyKeypointVo.relationship.push([
-                        i.toString(),
-                        (i+1).toString(),
-                        i // relationship id
-                    ]);
-                }
+                //5. Gán relationship giả
+                dummyKeypointVo.relationship = [
+                    ["1", "2", 1], // Đầu -> Vai trái
+                    ["1", "3", 2], // Đầu -> Vai phải
+                    ["2", "4", 3], // Vai trái -> Tay trái
+                    ["3", "5", 4], // Vai phải -> Tay phải
+                    ["2", "6", 5], // Vai trái -> Hông
+                    ["3", "6", 6], // Vai phải -> Hông
+                    ["6", "7", 7], // Hông -> Đầu gối trái
+                    ["6", "8", 8]  // Hông -> Đầu gối phải
+                ];
 
                 // 6. Add vào hệ thống
                 page.data.task.keypointVoList.push(dummyKeypointVo);
@@ -891,22 +940,19 @@
 
     <script type="html/template" id="tmpl-image-open">
         <li class="status_review_open">
-            <div class="data-box" onclick="page.fn.viewDetailInfo('#workTicketId#');" data-workTicketId="#workTicketId#">
+            <div class="data-box"  data-workTicketId="#workTicketId#">
                 <div class="check-area">
                 </div>
                 <div class="img-area">
                     <img
-                src="#"
-                onerror="page.fn.onErrorImageLoad(this);"
-                data-src="/api/images?filePath=#path#/#fileName#"
-                class="lazy"
-                id="img_#workTicketId#"
-                data-workTicketId="#workTicketId#"
-<%--                data-api-url="/api/images?filePath=#path#/#fileName#"--%>
-<%--                onload="loadImageFromApi(this)"--%>
-<%--                data-loaded="false"--%>
-            />
-            <svg id="svg_#workTicketId#"></svg>
+                    src="#"
+                    onerror="page.fn.onErrorImageLoad(this);"
+                    data-src="/api/images?filePath=#path#/#fileName#"
+                    class="lazy"
+                    id="img_#workTicketId#"
+                    data-workTicketId="#workTicketId#"
+                    />
+                    <svg id="svg_#workTicketId#"></svg>
                 </div>
             </div>
         </li>
@@ -1621,11 +1667,6 @@
                 </ul>
             </div>
 
-            <h4># <spring:message code="label.tool.image.review.contents.imageTagList" /></h4>
-            <div>
-                <ul id="rootRejectImageData">
-                </ul>
-            </div>
             <h4># <spring:message code="title.tool.image.review.failReason" /></h4>
             <div class="reject-choice-wrap">
                 <button class="reject-choice" onclick="page.fn.rejectChoiceOnClick(this);"><spring:message code="button.tool.image.selectRejectReason" /></button>
@@ -1691,25 +1732,18 @@
                     onclick="page.fn.procInspectionNG();"
             ><spring:message code="button.tool.confirmSpace" /></button>
         </div>
-<%--        tạm thời bỏ display:none, bỏ qua phần comment --%>
         <div class="reject-area" style=" padding-left:0; padding-right:0;" id="wrapInspImageInfo">
-<%--            <h4 class="cmtListTitle"># <spring:message code="spec.detail.comment" /><span class="cmtCount"></span><button class="data-info-btn cmtList" onclick="page.fn.viewMastercommentList()" style="top: -5px;">상세보기</button></h4>--%>
-<%--            <div id="masterCommentList">--%>
-<%--                <ul id="viewDetail_masterCommentList">--%>
-<%--                </ul>--%>
-<%--            </div>--%>
-<%--            <div style="position: relative;z-index: 1;">--%>
-<%--      				<textarea id="masterCommentContents"--%>
-<%--                              rows="4"--%>
-<%--                              onscroll="page.fn.addScrollEvent(this);"--%>
-<%--                              placeholder=""--%>
-<%--                              style="text-indent: 0;"></textarea>--%>
-<%--            </div>--%>
-<%--            <button type="button"--%>
-<%--                    class="btn-approve btnMasterComment reviewer"--%>
-<%--                    onclick="page.fn.procMasterComment();"--%>
-<%--                    style="margin-bottom: 5px; margin-top: 5px;"--%>
-<%--            ><spring:message code="spec.detail.comment" /></button>--%>
+<%--     danh sách hình ảnh --%>
+            <h4># Image List</h4>
+            <div>
+                <script type="text/html" id="tmpl-imageListItem">
+                    <li data-fileName="#fileName#" class="image-item">
+                        <strong>#fileName#</strong>
+                    </li>
+                </script>
+                <ul id="rootImageListData"></ul>
+            </div>
+
             <h4># <spring:message code="label.tool.image.review.contents.imageTagList" /></h4>
             <div>
                 <script type="text/html" id="tmpl-inspImageTag">
@@ -1904,38 +1938,38 @@
     </div>
     <div class="footer-center-right">
 <%--        hide--%>
-<%--        <div class="paging-area" id="pagingArea">--%>
-<%--            <h3 class="a11y-hidden"><spring:message code="label.tool.image.review.paging" /></h3>--%>
-<%--            <button class="btn-m-first setTooltip btnPaging"--%>
-<%--                    title="<spring:message code="button.tool.image.review.paging.gotoFirstPage" />"--%>
-<%--                    onclick="page.fn.changePage('first');"--%>
-<%--                    disabled--%>
-<%--            >&lt;&lt;</button>--%>
-<%--            <button class="btn-m-pre setTooltip btnPaging"--%>
-<%--                    title="<spring:message code="button.tool.image.review.paging.gotoPrevPage" />"--%>
-<%--                    onclick="page.fn.changePage('pre');"--%>
-<%--                    disabled--%>
-<%--            >&lt;</button>--%>
-<%--            <div class="select-style">--%>
-<%--                <select id="selPaging"--%>
-<%--                        class="setTooltip btnPaging curPoint"--%>
-<%--                        title="<spring:message code="button.tool.image.review.paging.gotoSelectPage" />"--%>
-<%--                        onchange="page.fn.changePageIndex();"--%>
-<%--                        disabled--%>
-<%--                >--%>
-<%--                </select>--%>
-<%--            </div>--%>
-<%--            <button class="btn-m-next setTooltip btnPaging"--%>
-<%--                    title="<spring:message code="button.tool.image.review.paging.gotoNextPage" />"--%>
-<%--                    onclick="page.fn.changePage('next');"--%>
-<%--                    disabled--%>
-<%--            >&gt;</button>--%>
-<%--            <button class="btn-m-last setTooltip btnPaging"--%>
-<%--                    title="<spring:message code="button.tool.image.review.paging.gotoLastPage" />"--%>
-<%--                    onclick="page.fn.changePage('last');"--%>
-<%--                    disabled--%>
-<%--            >&gt;&gt;</button>--%>
-<%--        </div>--%>
+        <div class="paging-area" id="pagingArea">
+            <h3 class="a11y-hidden"><spring:message code="label.tool.image.review.paging" /></h3>
+            <button class="btn-m-first setTooltip btnPaging"
+                    title="<spring:message code="button.tool.image.review.paging.gotoFirstPage" />"
+                    onclick="page.fn.changePage('first');"
+                    disabled
+            >&lt;&lt;</button>
+            <button class="btn-m-pre setTooltip btnPaging"
+                    title="<spring:message code="button.tool.image.review.paging.gotoPrevPage" />"
+                    onclick="page.fn.changePage('pre');"
+                    disabled
+            >&lt;</button>
+            <div class="select-style">
+                <select id="selPaging"
+                        class="setTooltip btnPaging curPoint"
+                        title="<spring:message code="button.tool.image.review.paging.gotoSelectPage" />"
+                        onchange="page.fn.changePageIndex();"
+                        disabled
+                >
+                </select>
+            </div>
+            <button class="btn-m-next setTooltip btnPaging"
+                    title="<spring:message code="button.tool.image.review.paging.gotoNextPage" />"
+                    onclick="page.fn.changePage('next');"
+                    disabled
+            >&gt;</button>
+            <button class="btn-m-last setTooltip btnPaging"
+                    title="<spring:message code="button.tool.image.review.paging.gotoLastPage" />"
+                    onclick="page.fn.changePage('last');"
+                    disabled
+            >&gt;&gt;</button>
+        </div>
 <%--    </div>--%>
 <%--    <c:if test="${param.reqType != 'master' and param.reqType != 'co' }">--%>
 <%--        <div class="footer-right">--%>

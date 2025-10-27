@@ -1,5 +1,6 @@
 package com.infiniq.ams.standalone.domain.controller;
 
+import com.infiniq.ams.standalone.domain.service.WorkspaceService;
 import com.infiniq.ams.standalone.domain.vo.*;
 import com.infiniq.ams.standalone.helper.ObjectCopyHelper;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +18,12 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 @Controller
+@RestController
 @RequestMapping("/task")
 public class WorkspaceController {
 
     private final ObjectCopyHelper objectCopyHelper;
+    private final WorkspaceService workspaceService;
 
     private final static String TASK_INFO_KEY = "TaskInformation";
     private final static String DATA_LIST_KEY = "DataList";
@@ -62,16 +65,18 @@ public class WorkspaceController {
 
             HttpSession                   session     = request.getSession();
             List<ReviewImageVo> sessionTask = (List<ReviewImageVo>) session.getAttribute(DATA_LIST_KEY);
-            reviewImageListVo.setReviewImageList(sessionTask);
+            List<ReviewImageVo> pagingData = this.workspaceService.getPagingData(taskVo, sessionTask);
+            reviewImageListVo.setReviewImageList(pagingData);
+            PagingVo pagingVo = new PagingVo(sessionTask.size(), taskVo.getPageIndex());
+
             r.setResult(true);
             r.setData(reviewImageListVo);
-
+            r.setPaging(pagingVo);
         } catch (Exception e) {
             log.info(e.getMessage());
             r.setMessage("Invalid data.");
             r.setResult(false);
         }
-
         return r;
     }
 

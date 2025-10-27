@@ -1293,3 +1293,12 @@ polyline.noline {
     padding-left: 0!important;
 }
 
+
+.li-highlight  {
+    background-color: #ffffcc;
+    border-left: 4px solid gold;
+    padding-left: 6px;
+    transition: background-color 0.3s ease, border-left 0.3s ease;
+}
+
+

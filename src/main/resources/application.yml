@@ -30,7 +30,7 @@ spring:
 
 standalone:
   data:
-    path: C:\\infiniq\\data.viewer\\data
+    path: F:\infiniq\data.viewer\data
   view:
     static: http://localhost:21024
 

@@ -8,7 +8,7 @@ public class PagingVo {
 
     private long totalCount = 0;
     private long pageIndex  = 1;  // 현재 페이지
-    private long pageSize   = 15; // 페이지 당 Row 수
+    private long pageSize   = 100; // 페이지 당 Row 수
 
     private long pageGroupSize = 5;
 
