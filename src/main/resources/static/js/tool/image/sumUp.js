@@ -2,6 +2,7 @@ let page = {};
 page.param = {};
 
 page.constants = {};
+
 page.constants.tagMappings = {
     truncation: {
         "1": "Trun_lower_body",
@@ -14,6 +15,7 @@ page.constants.tagMappings = {
         "3": "50-99%"
     }
 };
+
 page.constants.permission = {};
 page.constants.permission.worker = "worker";
 page.constants.permission.reviewer = "reviewer";
@@ -176,6 +178,7 @@ page.data.event = {
     , moveImageStartTop: 0
     , moveImageStartLeft: 0
 }
+page.data.currentImage = {}
 
 page.keypoint = {};
 
@@ -274,7 +277,7 @@ page.fn.init = function () {
             page.fn.setImageFilter(page.data.config.brightness, ui.value);
         }
     });
-
+//
     $("#inputCircleColorStart").val(page.data.config.color.circleStart);
     page.fn.setCircleColorStart(page.data.config.color.circleStart);
     $("#inputCircleColorStart").minicolors({
@@ -353,7 +356,6 @@ page.fn.init = function () {
     page.dom.btnsReview = $(".btnsReview");
     page.dom.btnsReviewPass = $(".btnsReviewPass");
     page.dom.btnToggleTag = $("#btnToggleTag");
-    page.dom.btnShowComment = $("#btnShowComment");
     page.dom.btnsReview.hide();
     page.dom.popGuide = $("#guide-modal");
     page.dom.popGuideHandle = $("#guide-modal .popUp-header").get(0);
@@ -732,7 +734,7 @@ page.fn.changePageIndex = function () {
     page.data.searchCondition.pageIndex = Number.parseInt($("#selPaging").val());
     page.fn.search(page.data.searchCondition);
 }
-page.fn.search = function(condition, showNext) {
+page.fn.search = function (condition, showNext) {
     showNext = showNext == true ? true : false;
     page.fn.showLoading();
     page.dom.root.empty();
@@ -740,78 +742,69 @@ page.fn.search = function(condition, showNext) {
         $(".modal-fail li input[type='checkbox']").prop("checked", false);
 
     }
-    if(page.data.imageMap) {
+    if (page.data.imageMap) {
         page.data.imageMap.clear();
     }
     page.data.imageMap = new HashMap();
     page.data.searchCondition = condition;
     $("#selPaging").empty();
     //page.fn.viewDetailInfo();
-    if(page.data.param.reqType == page.constants.permission.co) {
+    if (page.data.param.reqType == page.constants.permission.co) {
         condition.filterStatus = 'filter_status_all';
     }
-    let url = "/task/image-detail";
+    let url = "/apis/v1/workspace/review/list";
+    if (condition.reqType == page.constants.permission.inspector) {
+        url = "/apis/v1/workspace/inspect/list";
+    } else if (condition.reqType == page.constants.permission.master) {
+        url = "/apis/v1/workspace/master/list";
+    }
     _common.ajax.asyncJSON2({
-        url : url
-        , param : condition
-        , returnFunction : function(rev) {
-            if(rev.result && rev.data) {
+        url: url
+        , param: condition
+        , returnFunction: function (rev) {
+            if (rev.result && rev.data) {
                 log.info(rev, url);
-                //reset image list li
-                const $ul = $("#rootImageListData");
-                $ul.empty();
-
-                if(rev.data != null && rev.data.reviewImageList != null && rev.data.reviewImageList.length > 0) {
-                    rev.data.reviewImageList.forEach(function(file, idx){
+                if (rev.data != null && rev.data.reviewImageList != null && rev.data.reviewImageList.length > 0) {
+                    rev.data.reviewImageList.forEach(function (file, idx) {
                         file.index = idx;
                         let status = _common.nvl(file.status, "open");
-                        if(status == "reviewed" && file.statusReview != null) {
+                        if (status == "reviewed" && file.statusReview != null) {
                             status += "_" + file.statusReview;
                         } else if (status == "reviewed" && file.statusReview == null) {
                             status = "open";
                         }
-                        if(_common.nvl(file.status, "open") == "reviewed" && file.statusReview == "master comment") {
+                        if (_common.nvl(file.status, "open") == "reviewed" && file.statusReview == "master comment") {
                             status = "reviewed_fail";
                         }
-                        let tmplName = "tmpl-image-"+status;
+                        let tmplName = "tmpl-image-" + status;
                         // log.info("tmplName="+tmplName);
                         file.imageServer = page.data.imageServerURL;
-                        if(file.ocStatus != null && file.ocStatus == 'reject') {
+                        if (file.ocStatus != null && file.ocStatus == 'reject') {
                             page.dom.root.append(_common.template.parseObject("tmpl-image-object_check", file));
-                        }else {
+                        } else {
                             page.dom.root.append(_common.template.parseObject(tmplName, file));
                         }
-                        if(file.statusInspect == "OK") {
-                            $("#liImageRoot_"+file.workTicketId).append(_common.template.parseObject("tmpl-labelInspOK"));
-                        } else if(file.statusInspect == "NG") {
-                            $("#liImageRoot_"+file.workTicketId).append(_common.template.parseObject("tmpl-labelInspNG"));
+                        if (file.statusInspect == "OK") {
+                            $("#liImageRoot_" + file.workTicketId).append(_common.template.parseObject("tmpl-labelInspOK"));
+                        } else if (file.statusInspect == "NG") {
+                            $("#liImageRoot_" + file.workTicketId).append(_common.template.parseObject("tmpl-labelInspNG"));
                         }
-                        const html = _common.template.parseObject("tmpl-imageListItem", {
-                            fileName: file.fileName
-                        }) ;
-                        const $li = $(html);
-                        //closure??
-                        $li.data("file", file);
-                        $li.on("click", function () {
-                            page.fn.viewDetailInfo(file.workTicketId);
-                        })
-                        $("#rootImageListData").append($li);
                         page.data.imageMap.put(file.workTicketId, file);
+
                         // log.info(file, "page.fn.search");
                     });
-
                     $("#loadedImageCount").text(0);
                     page.fn.lazyLoad();
-                    if(page.data.lastSelectedImageNumber != null && showNext) {
-                        if(page.data.lastSelectedImageIndex > rev.data.reviewImageList.length - 1) {
+                    if (page.data.lastSelectedImageNumber != null && showNext) {
+                        if (page.data.lastSelectedImageIndex > rev.data.reviewImageList.length - 1) {
                             page.fn.viewDetailInfo(rev.data.reviewImageList[rev.data.reviewImageList.length - 1].workTicketId);
-                            $(".data-box[data-workTicketId='"+ rev.data.reviewImageList[rev.data.reviewImageList.length - 1].workTicketId + "']")[0].scrollIntoView();
-                        }else {
+                            $(".data-box[data-workTicketId='" + rev.data.reviewImageList[rev.data.reviewImageList.length - 1].workTicketId + "']")[0].scrollIntoView();
+                        } else {
                             page.fn.viewDetailInfo(rev.data.reviewImageList[page.data.lastSelectedImageIndex].workTicketId);
-                            $(".data-box[data-workTicketId='"+ rev.data.reviewImageList[page.data.lastSelectedImageIndex].workTicketId + "']")[0].scrollIntoView();
+                            $(".data-box[data-workTicketId='" + rev.data.reviewImageList[page.data.lastSelectedImageIndex].workTicketId + "']")[0].scrollIntoView();
                         }
-                    }else {
-                        if(!_common.isEmpty(page.data.initImgNumber) &&
+                    } else {
+                        if (!_common.isEmpty(page.data.initImgNumber) &&
                             _common.isNotEmpty(page.data.imageMap.get(page.data.initImgNumber))) {
                             $("#txt-file-locator-current").text(page.data.imageMap.get(page.data.initImgNumber).index + 1);
                             page.fn.viewDetailInfo(page.data.initImgNumber);
@@ -821,24 +814,24 @@ page.fn.search = function(condition, showNext) {
                         }
                     }
                     page.data.pagingInfo = {
-                        totalCount : rev.paging.totalCount
-                        , lastPageIndex : rev.paging.lastPage
-                        , currentPageIndex : rev.paging.pageIndex
-
+                        totalCount: rev.paging.totalCount
+                        , lastPageIndex: rev.paging.endPage
+                        , currentPageIndex: rev.paging.pageIndex
                     };
+
                     $("#pagingCurrentCount").text(rev.data.reviewImageList.length);
                     $("#txt-file-locator-total").text(rev.data.reviewImageList.length);
                     $("#pagingTotalCount").text(page.data.pagingInfo.totalCount);
                     $(".btnPaging").prop("disabled", false);
 
-                    for(let i = 1; i <= page.data.pagingInfo.lastPageIndex; i++) {
+                    for (let i = 1; i <= page.data.pagingInfo.lastPageIndex; i++) {
                         $("#selPaging").append(_common.template.parseObject("tmpl-paging-option", {
-                            pageNum   : i
-                            , selected: i == rev.paging.pageIndex ? "selected" : ""
+                            pageNum: i
+                            , selected: i == rev.data.pageIndex ? "selected" : ""
                         }));
                     }
 
-                    if($("#chkReviewImage_"+page.data.searchHistoryImage).length > 0) {
+                    if ($("#chkReviewImage_" + page.data.searchHistoryImage).length > 0) {
                         page.fn.viewDetailInfo(page.data.searchHistoryImage);
                         page.data.searchHistoryImage = null;
                     }
@@ -848,24 +841,23 @@ page.fn.search = function(condition, showNext) {
                     $("#pagingTotalCount").text(0);
                     $(".btnPaging").prop("disabled", true);
                     page.data.pagingInfo = {
-                        totalCount : 0
-                        , lastPageIndex : 0
-                        , currentPageIndex : 0
+                        totalCount: 0
+                        , lastPageIndex: 0
+                        , currentPageIndex: 0
                     };
                 }
                 if (_common.isEmpty(rev.data.taskValidatorList)) {
                     page.data.validatorList = rev.data.taskValidatorList;
                     $(".VC-check li").remove();
-                }
-                else if (page.data.validatorList != rev.data.taskValidatorList) {
+                } else if (page.data.validatorList != rev.data.taskValidatorList) {
                     page.data.validatorList = rev.data.taskValidatorList;
                     $(".VC-check li").remove();
                     rev.data.taskValidatorList.forEach(function (obj) {
                         if (_common.isNotEmpty(obj.workRuleType) && "11/21/31/41/51/61/71/81/91".includes(obj.workRuleType)) {
-                            $("#forRuleType_"+obj.workRuleType+" span").hide();
+                            $("#forRuleType_" + obj.workRuleType + " span").hide();
                             if (obj.workRuleType == '61') {
-                                let typeList =[];
-                                if (obj.numbering =="Y"){
+                                let typeList = [];
+                                if (obj.numbering == "Y") {
                                     typeList.push(page.message.numbering);
                                 }
                                 if (obj.letter == "Y") {
@@ -878,7 +870,7 @@ page.fn.search = function(condition, showNext) {
                                 if (_common.isEmpty(obj.tagClassName)) {
                                     obj.tagClassName = obj.tagName;
                                 }
-                            } else if (obj.workRuleType =='71') {
+                            } else if (obj.workRuleType == '71') {
                                 if (_common.isNotEmpty(obj.numbering)) {
                                     obj.tagValType = page.message.numbering;
                                 } else if (_common.isNotEmpty(obj.letter)) {
@@ -887,22 +879,22 @@ page.fn.search = function(condition, showNext) {
                                     obj.tagValType = page.message.specialCharacter;
                                 }
                             }
-                            $("#forRuleType_"+obj.workRuleType).append(_common.template.parseObject("tmpl-vcModal-workRuleType_"+obj.workRuleType, obj));
+                            $("#forRuleType_" + obj.workRuleType).append(_common.template.parseObject("tmpl-vcModal-workRuleType_" + obj.workRuleType, obj));
                         } else {
-                            log.error(obj, obj.workRuleType," is undefined workRuleType.");
+                            log.error(obj, obj.workRuleType, " is undefined workRuleType.");
                         }
                     });
                 }
 
                 $(".VC-check").each(function (i, o) {
-                    if($(o).children('li').length == 0) {
+                    if ($(o).children('li').length == 0) {
                         $(o).children('span').show();
                     }
                 });
             }
             page.fn.hideLoading();
             page.fn.reCheckImageSelected();
-        }, errorFunction : function() {
+        }, errorFunction: function () {
             page.fn.hideLoading();
         }
     });
@@ -1232,40 +1224,6 @@ page.fn.render.castLocation = function (loc) {
     }
     return l;
 }
-page.fn.render.tagObjectValue = function(object, x, y, width, height) {
-    //add label for tag
-    if(object.tagList && object.tagList.length > 0) {
-        let tag = object.tagList[0];
-        let tagGroup = document.createElementNS("http://www.w3.org/2000/svg", 'g');
-        tagGroup.setAttribute("class", "tag-group");
-        let tagLabel = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
-        tagLabel.setAttribute("x", x);
-        tagLabel.setAttribute("y", y);
-        tagLabel.setAttribute("width", Math.max(width * 0.2, 50));
-        tagLabel.setAttribute("height", Math.max(height * 0.1, 20));
-        tagLabel.setAttribute("title", page.fn.render.getTitle(object));
-        tagLabel.style.fill = tag.color || "#000";
-        tagLabel.style.fillOpacity = "1"; // Fully opaque
-
-        let tagText = document.createElementNS("http://www.w3.org/2000/svg", 'text');
-        tagText.setAttribute("x", x + 5);
-        tagText.setAttribute("y", y + 15);
-        tagText.setAttribute("fill", "#FFF");
-        tagText.style.fontSize = "12px";
-        const tagName = tag.tagName.toLowerCase();
-        const tagValueMapping = page.constants.tagMappings[tagName];
-        if (tagValueMapping && tagValueMapping[tag.val]) {
-            tag.tagValueName = tagValueMapping[tag.val];
-            tagText.textContent = tagValueMapping[tag.val] || "";
-        }
-
-        tagText.style.pointerEvents = "none"; // Prevent text from blocking click
-        // tagGroup.appendChild(tagLabel);
-        tagGroup.appendChild(tagText);
-        $("#svg_"+object.workTicketId).append(tagGroup);
-    }
-}
-
 page.fn.render.rectangle = function (object) {
     log.debug(object, "page.fn.render.rectangle");
     let loc = page.fn.render.castLocation(JSON.parse(object.objectLocation));
@@ -1292,8 +1250,6 @@ page.fn.render.rectangle = function (object) {
         if (loc.length > 2) {
             $(o).css("transform", "rotate(" + loc[2][0] + "deg)");
         }
-        //add tag label for object
-        page.fn.render.tagObjectValue(object, x, y, width, height);
     } else {
         log.debug("object data is not allow, workTicketId=" + object.workTicketId, "page.fn.render.rectangle");
     }
@@ -1957,7 +1913,6 @@ page.fn.render.keypoint = function (object) {
         // if(page.keypoint.position != "") {
         if (constKey.position != "") {
             let loc = JSON.parse(object.objectLocation);
-            let boundingBox = JSON.parse(object.objectBoundingBox)
             // log.info(object, "page.fn.render.keypoint");
             // log.info(loc, "page.fn.render.keypoint");
             if (loc != null && loc.length > 0) {
@@ -1976,43 +1931,6 @@ page.fn.render.keypoint = function (object) {
                 constKey.position.forEach(function (point) {
                     m2.put(point[2], point);
                 });
-                // ===== PHẦN THÊM VÀO TỰ ĐỘNG VẼ ROI ===== //
-                // 1. Thu thập tất cả tọa độ từ objectLocation
-                let allX = [];
-                let allY = [];
-                loc.forEach(point => {
-                    if (point[0] > -999 && point[1] > -999) { // Lọc điểm hợp lệ
-                        allX.push(point[0]);
-                        allY.push(point[1]);
-                    }
-                });
-
-                // 2. Tính toán bounding box bao quanh tất cả keypoint
-                if (allX.length > 0) {
-                    const minX = Math.min(...allX);
-                    const minY = Math.min(...allY);
-                    const maxX = Math.max(...allX);
-                    const maxY = Math.max(...allY);
-
-                    // 3. Tạo ROI rectangle
-                    const roiRect = {
-                        x: boundingBox.x,
-                        y: boundingBox.y,
-                        width: boundingBox.w,
-                        height: boundingBox.h
-                    };
-
-                    // 4. Vẽ bounding box
-                    const roiBox = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
-                    roiBox.setAttribute("x", roiRect.x);
-                    roiBox.setAttribute("y", roiRect.y);
-                    roiBox.setAttribute("width", roiRect.width);
-                    roiBox.setAttribute("height", roiRect.height);
-                    roiBox.setAttribute("class", "dynamic-roi CLASS_" + object.classId);
-                    roiBox.setAttribute("data-objectId", object.objectId);
-                    roiBox.setAttribute("style", "stroke: #FF0000;fill: none;stroke-width: 2;");
-                    g.append(roiBox);
-                }
                 if (_common.isNotEmpty(constKey.roi)) {
                     let roi = [];
                     let roiXList = [];
@@ -2046,10 +1964,7 @@ page.fn.render.keypoint = function (object) {
                         if (page.constants.keypoint.hiddenValues.includes(p1[3]) || page.constants.keypoint.hiddenValues.includes(p2[3])) {
                             lineStyle = page.constants.config.keypointLineStyle;
                         }
-                        // Skip if either point is (-1, -1)
-                        if ((p1[0] === -1 && p1[1] === -1) || (p2[0] === -1 && p2[1] === -1)) {
-                            return; // Or: continue; if inside a loop
-                        }
+
                         let points = p1[0] + "," + p1[1] + " " + p2[0] + "," + p2[1];
                         let o = document.createElementNS("http://www.w3.org/2000/svg", 'polyline');
                         o.setAttribute("points", points);
@@ -2294,20 +2209,6 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
     log.info(workTicketId, "page.fn.viewDetailInfo");
     let im = $(".data-box[data-workTicketId='" + workTicketId + "']");
     let img = page.data.imageMap.get(workTicketId);
-    // Get the comment text directly
-    let comment = Array.from(page.imageCommentMap.keys()).find(key => key.endsWith(img.originalFileName))
-        ? page.imageCommentMap.get(Array.from(page.imageCommentMap.keys()).find(key => key.endsWith(img.originalFileName)))[0]
-        : null;
-    let commentText = comment?.content || 'No comment available';
-    let commentDate = comment?.register_datetime ? comment.register_datetime : 'Unknown date';  page.data.currentImage = img;
-
-//handle highlight for image list li
-    $("#rootImageListData li").removeClass("li-highlight");
-    const selector = `li[data-filename="${img.fileName}"]`;
-    const $li = $("#rootImageListData").find(selector)
-    $li.addClass("li-highlight")
-    $li[0].scrollIntoView({behavior: "smooth", block: "center"})
-
     if (im.length > 0) {
         im[0].scrollIntoView(false);
         $(window).scrollTop(0);
@@ -2338,16 +2239,6 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
         }
         $("#root div.data-box[data-workTicketId='" + workTicketId + "']").append(_common.template.parseObject("tmpl-hightlightImage"));
         $("#viewDetail_fileName").text(img.originalFileName);
-        // Create the comment container
-        let commentContainer = `
-          <div>
-            <p>${commentText}</p>
-            ${commentDate !== 'Unknown date' ?
-                `<p style="font-style: italic; font-size: 12px; color: gray;">${commentDate}</p>`
-                : ''}
-          </div>
-         `;
-        $("#viewDetail_comment").html(commentContainer);
         $('#copyBtnDiv').html('');
         $('#copyBtnDiv').append(_common.template.parseObject('tmpl-fileInfo-fileCopy', img))
         $("#viewDetail_fileName").parent().children(".title-tooltip").text(img.originalFileName);
@@ -2421,7 +2312,7 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
                 tag.objectId = "";
                 tag.tagValueStyle = "";
                 page.dom.rootRejectImageData.append(_common.template.parseObject("tmpl-rejectImage-tag", tag));
-                // $("#rootInspImageTagList").append(_common.template.parseObject("tmpl-inspImageTag", tag));
+                $("#rootInspImageTagList").append(_common.template.parseObject("tmpl-inspImageTag", tag));
             });
         }
         $(".reject-choice").hide();
@@ -2488,7 +2379,7 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
             $("#deleteFile").hide();
             $("#detailReject input[type='checkbox']").prop("disabled", false);
             $("#detailReject textarea").prop("disabled", false);
-            // $("#wrapInspImageInfo").hide();
+            $("#wrapInspImageInfo").hide();
         } else if (page.data.param.reqType != page.constants.permission.reviewer) {
             if (img.status == page.constants.imageStatusCode.reviewed
                 && img.statusReview == page.constants.imageStatusCode.reviewPass) {
@@ -2554,8 +2445,8 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
                 }
 
             } else if (_common.isEmpty(img.statusInspect) && page.data.param.reqType == page.constants.permission.reviewer) {
-                // $("#detailInspection").hide();
-                // $("#wrapInspImageInfo").hide();
+                $("#detailInspection").hide();
+                $("#wrapInspImageInfo").hide();
             } else if (_common.is(img.statusInspect) && "manager/insp".includes(page.data.param.reqType)) {
             }
         } else if (img.status == page.constants.imageStatusCode.reviewed && img.statusReview == page.constants.imageStatusCode.reviewFail) {
@@ -2574,7 +2465,7 @@ page.fn.viewDetailInfo = function (workTicketId, isNeedChecked) {
         if (page.constants.isReviewer) {
             $('#detailReject').show();
             $(".filebox-wrap").hide();
-            // $("#wrapInspImageInfo").hide();
+            $("#wrapInspImageInfo").hide();
         }
         $("#viewDetail_fileName").text("");
         $("#viewDetail_status").text("");
@@ -3112,360 +3003,6 @@ page.fn.toggleViewTag = function () {
         page.dom.root.addClass("onTag");
         _common.cookie.set(page.constants.cookieKeys.isViewTags, "true");
     }
-}
-page.fn.nextInspObjectHighlight = (function() {
-
-    let currentIndex = 0;
-    let blinkInterval = null;
-    let timeoutHandle = null;
-    let lastHighlightedElements = [];
-    let lastHighlightedLi = null;
-
-    return function() {
-        const objectList = page.data.currentImage.objectList;
-        if (!objectList || objectList.length === 0) return;
-
-        // Reset index if out of range
-        if (currentIndex >= objectList.length) {
-            currentIndex = 0;
-        }
-
-        // Clear previous SVG highlight blink
-        if (blinkInterval) {
-            clearInterval(blinkInterval);
-            blinkInterval = null;
-        }
-        if (timeoutHandle) {
-            clearTimeout(timeoutHandle);
-            timeoutHandle = null;
-        }
-
-        // Remove old SVG highlight
-        if (lastHighlightedElements.length > 0) {
-            lastHighlightedElements.forEach(element => {
-                $(element).css({
-                    "transition": "stroke 0.3s, stroke-width 0.3s, opacity 0.3s",
-                    "stroke": $(element).data("original-color") || "none",
-                    "stroke-width": page.data.config.border / 100,
-                    "opacity": "1"
-                });
-            });
-            lastHighlightedElements = [];
-        }
-
-        // Remove highlight from previous LI
-        if (lastHighlightedLi) {
-            lastHighlightedLi.removeClass("li-highlight");
-            lastHighlightedLi = null;
-        }
-
-        // Get next object
-        const object = objectList[currentIndex];
-        currentIndex = (currentIndex + 1) % objectList.length;
-
-        // Find and highlight SVG elements
-        const svgElements = $("#svg_" + object.workTicketId).find(
-            `rect[data-objectId='${object.objectId}'],
-       polygon[data-objectId='${object.objectId}'],
-       g[objectId='${object.objectId}'] polygon,
-        g[id='group_${object.objectId}'] circle,
-       g[objectId='${object.objectId}'] circle`
-        );
-
-        lastHighlightedElements = svgElements.toArray().map(el => $(el));
-        lastHighlightedElements.forEach(el => {
-            el.data("original-color", el.css("stroke"));
-            el.css({
-                "transition": "stroke 0.3s, stroke-width 0.3s, opacity 0.3s",
-                "stroke": "yellow",
-                "stroke-width": "3",
-                "opacity": "1"
-            });
-        });
-
-        // Blink SVG stroke
-        let highlighted = true;
-        blinkInterval = setInterval(() => {
-            lastHighlightedElements.forEach(el => {
-                el.css({
-                    "stroke": highlighted ? "yellow" : "none",
-                    "stroke-width": highlighted ? "5" : "0"
-                });
-            });
-            highlighted = !highlighted;
-        }, 300);
-
-        timeoutHandle = setTimeout(() => {
-            clearInterval(blinkInterval);
-            blinkInterval = null;
-            lastHighlightedElements.forEach(el => {
-                el.css({
-                    "stroke": "yellow",
-                    "stroke-width": "5",
-                    "opacity": "1"
-                });
-            });
-        }, 1000);
-
-        // Highlight corresponding <li>
-        const liId = `#li_inspObj_${object.objectId}`;
-        const $li = $(liId);
-        if ($li.length > 0) {
-            $li.addClass("li-highlight");
-            $li[0].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            lastHighlightedLi = $li;
-        }
-    };
-})();
-
-page.fn.showComment = function(containerSelector = 'body') {
-    //toggle
-    if(page.dom.btnShowComment.hasClass("on")) {
-        page.dom.btnShowComment.removeClass("on");
-    } else {
-        page.dom.btnShowComment.addClass("on");
-    }
-
-    // Lấy container cha (mặc định là body nếu không chỉ định)
-    const container = document.querySelector(containerSelector) || document.body;
-
-    // Kiểm tra nếu popup đã tồn tại
-    if (document.getElementById("commentPopup")) {
-        // document.getElementById("commentPopup").style.display = "none";
-        document.body.removeChild(document.getElementById("commentPopup"));
-        return;
-    }
-
-    // Tạo popup với style đẹp hơn
-    const popup = document.createElement("div");
-    popup.id = "commentPopup";
-    popup.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: #fff;
-    padding: 0;
-    border-radius: 12px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    z-index: 1000;
-    width: 400px;
-    max-width: 90vw;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    overflow: hidden;
-    opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-  `;
-
-    // Nội dung popup
-    popup.innerHTML = `
-    <div id="popupHeader" style="
-      background: #323536;
-      color: white;
-      padding: 15px 20px;
-      font-size: 18px;
-      font-weight: 600;
-      cursor: move;
-      user-select: none;
-    ">
-      <span>Add Comment</span>
-      <button id="closePopupBtn" style="
-        float: right;
-        background: transparent;
-        border: none;
-        color: white;
-        font-size: 16px;
-        cursor: pointer;
-        padding: 0 5px;
-        margin-top: -5px;
-      ">×</button>
-    </div>
-    <div style="padding: 20px;">
-      <textarea id="commentText" placeholder="Write your comment here..." style="
-        width: 100%;
-        min-height: 120px;
-        padding: 12px;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        resize: vertical;
-        font-family: inherit;
-        font-size: 14px;
-        transition: border 0.3s;
-      "></textarea>
-      <div style="
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 15px;
-      ">
-        <button onclick="page.fn.closeComment()" style="
-          padding: 8px 16px;
-          background: #f5f5f5;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.2s;
-        ">Cancel</button>
-        <button onclick="page.fn.submitComment()" style="
-          padding: 8px 16px;
-          background: #323536;
-          color: white;
-          border: none;
-          border-radius: 4px;
-          cursor: pointer;
-          transition: all 0.2s;
-        ">Submit</button>
-      </div>
-    </div>
-  `;
-
-    // Thêm vào DOM
-    document.body.appendChild(popup);
-
-    // Hiệu ứng fade in
-    setTimeout(() => {
-        popup.style.opacity = "1";
-        popup.style.transform = "translate(-50%, -50%) scale(1)";
-    }, 10);
-
-    // Xử lý di chuyển popup
-    const header = popup.querySelector("#popupHeader");
-    let isDragging = false;
-    let startX, startY, initialX, initialY;
-
-    header.addEventListener('mousedown', function(e) {
-        isDragging = true;
-
-        // Tính toán chính xác offset từ vị trí click đến góc popup
-        const rect = popup.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
-        startX = e.clientX;
-        startY = e.clientY;
-        initialX = rect.left - containerRect.left; // Tính toán vị trí tương đối trong container
-        initialY = rect.top - containerRect.top;
-
-        offsetX = e.clientX - rect.left;
-        offsetY = e.clientY - rect.top;
-
-        header.style.cursor = 'grabbing';
-        popup.style.transition = 'none';
-        popup.style.userSelect = 'none'; // Ngăn chọn text khi kéo
-        e.preventDefault();
-    });
-
-    const movePopup = (e) => {
-        if (!isDragging) return;
-
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
-
-        // Tính toán vị trí mới tương đối trong container
-        let newX = initialX + dx;
-        let newY = initialY + dy;
-
-        // Giới hạn trong phạm vi container
-        const popupWidth = popup.offsetWidth;
-        const popupHeight = popup.offsetHeight;
-
-        // Giới hạn trái
-        newX = Math.max(0, newX);
-        // Giới hạn phải
-        newX = Math.min(container.clientWidth - popupWidth, newX);
-        // Giới hạn trên
-        newY = Math.max(0, newY);
-        // Giới hạn dưới
-        newY = Math.min(container.clientHeight - popupHeight, newY);
-
-        popup.style.left = `${newX}px`;
-        popup.style.top = `${newY}px`;
-        popup.style.transform = 'none';
-    };
-
-    // Sử dụng requestAnimationFrame để mượt mà
-    const smoothMove = (e) => {
-        requestAnimationFrame(() => movePopup(e));
-    };
-
-    document.addEventListener('mousemove', smoothMove);
-
-    document.addEventListener('mouseup', () => {
-        if (!isDragging) return;
-
-        isDragging = false;
-        header.style.cursor = 'move';
-        popup.style.userSelect = 'auto';
-
-        // Kích hoạt lại transition khi kết thúc kéo
-        setTimeout(() => {
-            popup.style.transition = 'transform 0.2s ease-out';
-        }, 10);
-    });
-
-    // Nút đóng popup
-    popup.querySelector("#closePopupBtn").addEventListener('click', page.fn.closeComment);
-};
-
-page.fn.closeComment = function() {
-    const popup = document.getElementById("commentPopup");
-    if (popup) {
-        popup.style.opacity = "0";
-        popup.style.transform = "translate(-50%, -50%) scale(0.9)";
-        setTimeout(() => {
-            document.body.removeChild(popup);
-            page.dom.btnShowComment.removeClass("on");
-        }, 300);
-    }
-};
-
-page.fn.submitComment = function () {
-    const text = document.getElementById("commentText").value.trim();
-    if (text) {
-        console.log("Comment submitted:", text);
-        //hidden
-        let fileName = page.data.currentImage.originalFileName;
-        let data = new Object();
-        data.contents = text;
-        data.orgnFileName = fileName;
-        let param = {
-            url : "/annotate/saveComment"
-            , param : data
-            , returnFunction : function(rev){
-                if (rev.result) {
-                    page.imageCommentMap.set(fileName, [{
-                        content: text,
-                        register_datetime: new Date().toISOString()
-                    }]);
-                    page.fn.renderComment(fileName);
-                } else {
-                    console.log('Failed to save comment');
-                }
-            }
-        };
-        _common.ajax.asyncJSON2(param);
-    }
-    page.fn.closeComment();
-};
-
-page.fn.renderComment = function(fileName) {
-    const commentContainer = $("#viewDetail_comment");
-    commentContainer.empty();
-    const comment = page.imageCommentMap.get(fileName)?.[0];
-    debugger;
-    if(comment.length == 0) {
-        commentContainer.text("")
-        return;
-    }
-    if(comment){
-        commentContainer.html(`
-      <div>
-        <p>${comment.content}</p>
-        <p style="font-style: italic; font-size: 12px; color: gray;">
-        ${new Date(comment.register_datetime).toLocaleDateString()}
-        </p>
-      </div>
-    `)
-    }
-
 }
 page.fn.convertReqType = function () {
     let reqType = page.constants.permission.reviewer;
@@ -5187,56 +4724,56 @@ page.fn.render.sideBox = function (object) {
 }
 
 page.fn.render.edgeLines = function (object) {
-    // let loc = page.fn.render.castLocation(JSON.parse(object.objectLocation));
-    // let minXY = null;
-    // if (loc != null && loc.length > 0) {
-    //     let o = document.createElementNS("http://www.w3.org/2000/svg", 'polyline');
-    //     o.setAttribute("class", "draw-object CLASS_" + object.classId);
-    //     o.setAttribute("points", loc);
-    //     o.setAttribute("title", page.fn.render.getTitle(object));
-    //     o.setAttribute("data-workTicketId", object.workTicketId);
-    //     o.setAttribute("data-objectId", object.objectId);
-    //
-    //     loc = JSON.parse(object.objectLocation);
-    //     $("#svg_" + object.workTicketId).append(o);
-    //     if (loc != null && loc.length > 0) {
-    //         minXY = {
-    //             x: 1000000000
-    //             , y: 100000000
-    //         };
-    //         let g = document.createElementNS("http://www.w3.org/2000/svg", 'g');
-    //         $("#svg_" + object.workTicketId).append(g);
-    //         g = $(g);
-    //         g.addClass("group_edge_points")
-    //         let canvasSize = $("#svg_" + object.workTicketId).attr("viewBox");
-    //         let maxHeight = 0;
-    //         let maxWidth = 0;
-    //         try {
-    //             canvasSize = canvasSize.split(" ");
-    //             maxWidth = canvasSize[2];
-    //             maxHeight = canvasSize[3];
-    //         } catch (E) {
-    //             log.error(E, "page.fn.render.edgeLine, canvasSize");
-    //         }
-    //
-    //         loc.forEach((function (point) {
-    //             let cx = point[0];
-    //             let cy = point[1];
-    //             minXY.x = Math.min(cx, minXY.x);
-    //             minXY.y = Math.min(cy, minXY.y);
-    //
-    //             let c = document.createElementNS("http://www.w3.org/2000/svg", 'circle');
-    //             g.append(c);
-    //             c = $(c);
-    //             c.attr("cx", cx);
-    //             c.attr("cy", cy);
-    //             c.addClass("edge-point");
-    //         }));
-    //     }
-    // } else {
-    //     log.debug("object data is not allow, workTicketId=" + object.workTicketId, "page.fn.render.edgeLine");
-    // }
-    // return minXY;
+    let loc = page.fn.render.castLocation(JSON.parse(object.objectLocation));
+    let minXY = null;
+    if (loc != null && loc.length > 0) {
+        let o = document.createElementNS("http://www.w3.org/2000/svg", 'polyline');
+        o.setAttribute("class", "draw-object CLASS_" + object.classId);
+        o.setAttribute("points", loc);
+        o.setAttribute("title", page.fn.render.getTitle(object));
+        o.setAttribute("data-workTicketId", object.workTicketId);
+        o.setAttribute("data-objectId", object.objectId);
+
+        loc = JSON.parse(object.objectLocation);
+        $("#svg_" + object.workTicketId).append(o);
+        if (loc != null && loc.length > 0) {
+            minXY = {
+                x: 1000000000
+                , y: 100000000
+            };
+            let g = document.createElementNS("http://www.w3.org/2000/svg", 'g');
+            $("#svg_" + object.workTicketId).append(g);
+            g = $(g);
+            g.addClass("group_edge_points")
+            let canvasSize = $("#svg_" + object.workTicketId).attr("viewBox");
+            let maxHeight = 0;
+            let maxWidth = 0;
+            try {
+                canvasSize = canvasSize.split(" ");
+                maxWidth = canvasSize[2];
+                maxHeight = canvasSize[3];
+            } catch (E) {
+                log.error(E, "page.fn.render.edgeLine, canvasSize");
+            }
+
+            loc.forEach((function (point) {
+                let cx = point[0];
+                let cy = point[1];
+                minXY.x = Math.min(cx, minXY.x);
+                minXY.y = Math.min(cy, minXY.y);
+
+                let c = document.createElementNS("http://www.w3.org/2000/svg", 'circle');
+                g.append(c);
+                c = $(c);
+                c.attr("cx", cx);
+                c.attr("cy", cy);
+                c.addClass("edge-point");
+            }));
+        }
+    } else {
+        log.debug("object data is not allow, workTicketId=" + object.workTicketId, "page.fn.render.edgeLine");
+    }
+    return minXY;
 }
 
 page.fn.toggleKeypointLineStyle = function () {
@@ -5317,12 +4854,9 @@ page.fn.render.fn6PointCube = function (object) {
         rect.setAttribute("data-group", '6pointCube');
         if (object.direction6PointCube === "front")
             rect.style.fill = "blue";
-        else if (object.direction6PointCube === "rear")
+        else
             rect.style.fill = "red";
-        else if (object.direction6PointCube === "side")
-            rect.style.fill = "green";
-        //add tag label for object
-        page.fn.render.tagObjectValue(object, x, y, width, height);
+
         g.appendChild(rect);
 
 
