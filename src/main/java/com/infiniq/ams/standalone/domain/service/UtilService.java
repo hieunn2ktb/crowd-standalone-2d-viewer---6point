@@ -51,6 +51,34 @@ public class UtilService {
         if (className == null || className.isEmpty()) {
             return "";
         }
+        // Custom mapping for COCO categories
+        if (className.equalsIgnoreCase("car")) {
+            return "#FF0000";
+        } else if (className.equalsIgnoreCase("truck")) {
+            return "#22D6B2";
+        } else if (className.equalsIgnoreCase("bus")) {
+            return "#FFFF64";
+        } else if (className.equalsIgnoreCase("special_vehicle")) {
+            return "#D26419";
+        } else if (className.equalsIgnoreCase("motorcycle")) {
+            return "#C8C8EB";
+        } else if (className.equalsIgnoreCase("bicycle")) {
+            return "#A0CD41";
+        } else if (className.equalsIgnoreCase("pedestrian")) {
+            return "#0010F5";
+        } else if (className.equalsIgnoreCase("traffic_sign")) {
+            return "#64FA64";
+        } else if (className.equalsIgnoreCase("traffic_light")) {
+            return "#D78989";
+        } else if (className.equalsIgnoreCase("bump")) {
+            return "#9900FF";
+        } else if (className.equalsIgnoreCase("drain")) {
+            return "#FF8282";
+        } else if (className.equalsIgnoreCase("manhole")) {
+            return "#825F41";
+        } else if (className.equalsIgnoreCase("pothole")) {
+            return "#4100AF";
+        }
         if (className.equalsIgnoreCase("Sedan")) {
             return "#f6a500";
         } else if (className.equalsIgnoreCase("Truck")) {

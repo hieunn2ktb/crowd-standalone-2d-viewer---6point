@@ -38,8 +38,27 @@ public class WorkDataService {
     private int totalObj = 0;
     public List<ReviewImageVo> getWorkedList(TaskVo task, String fileName) throws Exception {
         this.totalObj = 0;
-        JSONArray jsonArray = getJsonArray(fileName);
-        if (jsonArray == null || jsonArray.isEmpty()) {
+        // Load all json files in folder and aggregate
+        List<Object> roots = readAllJsonRoots(fileName);
+        boolean hasCoco = roots.stream().anyMatch(o -> o instanceof JSONObject);
+        if (hasCoco) {
+            List<ReviewImageVo> result = new ArrayList<>();
+            for (Object r : roots) {
+                if (r instanceof JSONObject) {
+                    result.addAll(getWorkedListFromCoco((JSONObject) r, task));
+                }
+            }
+            return result;
+        }
+        // Legacy frames format (concatenate)
+        JSONArray jsonArray = new JSONArray();
+        for (Object r : roots) {
+            if (r instanceof JSONArray) {
+                JSONArray arr = (JSONArray) r;
+                for (int i = 0; i < arr.length(); i++) jsonArray.put(arr.get(i));
+            }
+        }
+        if (jsonArray.isEmpty()) {
             throw new IllegalArgumentException("Invalid JSON structure: empty or missing frames");
         }
         // Build class map from objects
@@ -165,6 +184,188 @@ public class WorkDataService {
         } catch (IOException | JSONException e) {
             throw new FileNotFoundException("Error reading or parsing JSON: " + e.getMessage());
         }
+    }
+
+    /**
+     * Read JSON root as either JSONArray (legacy) or JSONObject (COCO-like)
+     */
+    private Object readJsonRoot(String fileName) throws FileNotFoundException {
+        File dir = new File(rootPath + File.separator + fileName);
+        String[] folderList = dir.list();
+        String jsonPath = "";
+        if (folderList != null) {
+            for (String folder : folderList) {
+                if (folder.toLowerCase().endsWith(".json")) {
+                    jsonPath = dir + File.separator + folder;
+                    break;
+                }
+            }
+        }
+        if (jsonPath.isEmpty()) {
+            throw new FileNotFoundException("JSON file not found in " + dir);
+        }
+        try (FileInputStream inputStream = new FileInputStream(new File(jsonPath))) {
+            String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
+                    .lines()
+                    .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+                    .toString();
+            try {
+                return new JSONArray(jsonContent);
+            } catch (JSONException ex) {
+                // Try object format
+                return new JSONObject(jsonContent);
+            }
+        } catch (IOException | JSONException e) {
+            throw new FileNotFoundException("Error reading or parsing JSON: " + e.getMessage());
+        }
+    }
+
+    private List<Object> readAllJsonRoots(String fileName) throws FileNotFoundException {
+        File dir = new File(rootPath + File.separator + fileName);
+        if (!dir.exists() || !dir.isDirectory()) {
+            throw new FileNotFoundException("Invalid folder path: " + dir);
+        }
+        List<Object> result = new ArrayList<>();
+        Queue<File> q = new LinkedList<>();
+        q.add(dir);
+        while (!q.isEmpty()) {
+            File cur = q.poll();
+            File[] files = cur.listFiles();
+            if (files == null) continue;
+            for (File f : files) {
+                if (f.isDirectory()) {
+                    q.add(f);
+                } else if (f.getName().toLowerCase().endsWith(".json")) {
+                    try (FileInputStream inputStream = new FileInputStream(f)) {
+                        String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
+                                .lines()
+                                .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append)
+                                .toString();
+                        try {
+                            result.add(new JSONArray(jsonContent));
+                        } catch (JSONException ex) {
+                            try {
+                                result.add(new JSONObject(jsonContent));
+                            } catch (JSONException ex2) {
+                                // ignore invalid json
+                            }
+                        }
+                    } catch (IOException e) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        if (result.isEmpty()) {
+            throw new FileNotFoundException("JSON file not found under " + dir);
+        }
+        return result;
+    }
+
+    private List<ReviewImageVo> getWorkedListFromCoco(JSONObject root, TaskVo task) {
+        Map<Integer, String> catIdToName = new HashMap<>();
+        if (root.has("categories")) {
+            JSONArray cats = root.getJSONArray("categories");
+            for (int i = 0; i < cats.length(); i++) {
+                JSONObject c = cats.getJSONObject(i);
+                int id = c.getInt("id");
+                String name = c.optString("name", "");
+                catIdToName.put(id, name);
+            }
+        }
+
+        // Build image map
+        Map<Long, ReviewImageVo> imageMap = new LinkedHashMap<>();
+        if (root.has("images")) {
+            JSONArray imgs = root.getJSONArray("images");
+            for (int i = 0; i < imgs.length(); i++) {
+                JSONObject im = imgs.getJSONObject(i);
+                long imageId = im.getLong("id");
+                String filePathRaw = im.getString("file_name");
+                String filePath = filePathRaw.startsWith("/") ? filePathRaw.substring(1) : filePathRaw;
+                String nameOnly = Paths.get(filePath).getFileName().toString();
+                String parent = new File(filePath).getParent();
+                parent = parent == null ? "" : parent.replace("\\", "/");
+
+                ReviewImageVo imageVo = new ReviewImageVo();
+                imageVo.setProjectId(task.getProjectId());
+                imageVo.setTaskId(task.getTaskId());
+                imageVo.setWorkTicketId(idGenerateService.generateWorkTicketId());
+                imageVo.setFileName(nameOnly);
+                imageVo.setOriginalFileName(nameOnly);
+                imageVo.setOriginalFilePath(filePath);
+                imageVo.setPath(parent);
+                imageVo.setObjectList(new ArrayList<>());
+                imageVo.setTagList(new ArrayList<>());
+                imageMap.put(imageId, imageVo);
+            }
+        }
+
+        // Group annotations by image
+        if (root.has("annotations")) {
+            JSONArray anns = root.getJSONArray("annotations");
+            for (int i = 0; i < anns.length(); i++) {
+                JSONObject ann = anns.getJSONObject(i);
+                long imageId = ann.getLong("image_id");
+                ReviewImageVo imageVo = imageMap.get(imageId);
+                if (imageVo == null) continue;
+
+                ImageObjectVo objectVo = new ImageObjectVo();
+                objectVo.setObjectId(generateObjectId());
+                objectVo.setProjectId(task.getProjectId());
+                objectVo.setTaskId(task.getTaskId());
+                objectVo.setWorkTicketId(imageVo.getWorkTicketId());
+                objectVo.setObjectOrder(imageVo.getObjectList().size() + 1);
+
+                int catId = ann.optInt("category_id", -1);
+                String className = catIdToName.getOrDefault(catId, "");
+                objectVo.setClassName(className);
+                objectVo.setClassId(findClassIdyClassName(task, className));
+                objectVo.setColor(utilService.getClassColorByClassName(className));
+
+                // Determine object type: default rect when bbox exists
+                String type = ann.optString("type", "");
+                if (ann.has("bbox")) {
+                    objectVo.setObjectType("rect");
+                    JSONArray bbox = ann.getJSONArray("bbox");
+                    double x = bbox.optDouble(0);
+                    double y = bbox.optDouble(1);
+                    double w = bbox.optDouble(2);
+                    double h = bbox.optDouble(3);
+                    JSONArray loc = new JSONArray();
+                    loc.put(new JSONArray().put(x).put(y).put(UUID.randomUUID().toString().substring(0, 10)));
+                    loc.put(new JSONArray().put(x + w).put(y + h).put(UUID.randomUUID().toString().substring(0, 10)));
+                    objectVo.setObjectLocation(loc.toString());
+                } else if ("rect".equalsIgnoreCase(type)) {
+                    // fallback: if only type rect and segmentation is 2 points [x1,y1,x2,y2]
+                    JSONArray segs = ann.optJSONArray("segmentation");
+                    if (segs != null && segs.length() > 0) {
+                        JSONArray p = segs.getJSONArray(0);
+                        if (p.length() >= 4) {
+                            double x1 = p.getDouble(0), y1 = p.getDouble(1), x2 = p.getDouble(2), y2 = p.getDouble(3);
+                            JSONArray loc = new JSONArray();
+                            loc.put(new JSONArray().put(x1).put(y1).put(UUID.randomUUID().toString().substring(0, 10)));
+                            loc.put(new JSONArray().put(x2).put(y2).put(UUID.randomUUID().toString().substring(0, 10)));
+                            objectVo.setObjectType("rect");
+                            objectVo.setObjectLocation(loc.toString());
+                        }
+                    }
+                }
+                objectVo.setTagList(new ArrayList<>());
+                imageVo.getObjectList().add(objectVo);
+                this.totalObj++;
+            }
+        }
+
+        // Flatten tags per image
+        for (ReviewImageVo iv : imageMap.values()) {
+            List<ImageObjectTagVo> allTags = iv.getObjectList().stream()
+                    .filter(obj -> obj.getTagList() != null)
+                    .flatMap(obj -> obj.getTagList().stream())
+                    .collect(Collectors.toList());
+            iv.setTagList(allTags);
+        }
+        return new ArrayList<>(imageMap.values());
     }
 
 
@@ -641,27 +842,62 @@ public class WorkDataService {
 
     public HashMap<String, Integer> getClassList(TaskVo taskVo, String fileName) throws FileNotFoundException {
         HashMap<String, Integer> classMap = new HashMap<>();
-        JSONArray jsonArray = getJsonArray(fileName);
-
-        for (int i = 0; i < jsonArray.length(); i++) {
-            try {
-                JSONObject frame = jsonArray.getJSONObject(i);
-                JSONArray objects = frame.getJSONArray("objects");
-                for (int j = 0; j < objects.length(); j++) {
-                    JSONObject obj = objects.getJSONObject(j);
-                    JSONObject attributes = obj.getJSONObject("attributes");
-                    int outerType = obj.getInt("type");
-                    int innerType = attributes.getInt("type");
-                    String className = this.utilService.getClassName(outerType, innerType);
-                    for (ClassVo classVo : taskVo.getClassVoList()) {
-                        if (classVo.getClassName().equals(className)) {
-                            classMap.compute(className, (key, value) -> (value == null) ? 1 : value + 1);
-                            break;
+        List<Object> roots = readAllJsonRoots(fileName);
+        boolean hasCoco = roots.stream().anyMatch(o -> o instanceof JSONObject);
+        if (hasCoco) {
+            for (Object r : roots) {
+                if (!(r instanceof JSONObject)) continue;
+                JSONObject objRoot = (JSONObject) r;
+                Map<Integer, String> catIdToName = new HashMap<>();
+                if (objRoot.has("categories")) {
+                    JSONArray cats = objRoot.getJSONArray("categories");
+                    for (int i = 0; i < cats.length(); i++) {
+                        JSONObject c = cats.getJSONObject(i);
+                        catIdToName.put(c.getInt("id"), c.optString("name", ""));
+                    }
+                }
+                if (objRoot.has("annotations")) {
+                    JSONArray anns = objRoot.getJSONArray("annotations");
+                    for (int i = 0; i < anns.length(); i++) {
+                        JSONObject a = anns.getJSONObject(i);
+                        int catId = a.optInt("category_id", -1);
+                        String className = catIdToName.getOrDefault(catId, "");
+                        if (className == null || className.isEmpty()) continue;
+                        for (ClassVo classVo : taskVo.getClassVoList()) {
+                            if (classVo.getClassName().equals(className)) {
+                                classMap.compute(className, (key, value) -> (value == null) ? 1 : value + 1);
+                                break;
+                            }
                         }
                     }
                 }
-            } catch (JSONException e) {
-                System.err.println("Error processing frame " + i + ": " + e.getMessage());
+            }
+            return classMap;
+        }
+        // legacy arrays
+        for (Object r : roots) {
+            if (!(r instanceof JSONArray)) continue;
+            JSONArray jsonArray = (JSONArray) r;
+            for (int i = 0; i < jsonArray.length(); i++) {
+                try {
+                    JSONObject frame = jsonArray.getJSONObject(i);
+                    JSONArray objects = frame.getJSONArray("objects");
+                    for (int j = 0; j < objects.length(); j++) {
+                        JSONObject obj = objects.getJSONObject(j);
+                        JSONObject attributes = obj.getJSONObject("attributes");
+                        int outerType = obj.getInt("type");
+                        int innerType = attributes.getInt("type");
+                        String className = this.utilService.getClassName(outerType, innerType);
+                        for (ClassVo classVo : taskVo.getClassVoList()) {
+                            if (classVo.getClassName().equals(className)) {
+                                classMap.compute(className, (key, value) -> (value == null) ? 1 : value + 1);
+                                break;
+                            }
+                        }
+                    }
+                } catch (JSONException e) {
+                    System.err.println("Error processing frame " + i + ": " + e.getMessage());
+                }
             }
         }
         return classMap;

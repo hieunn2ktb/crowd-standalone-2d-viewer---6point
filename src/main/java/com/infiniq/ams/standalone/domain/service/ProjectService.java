@@ -90,65 +90,84 @@ public class ProjectService {
         // Convert to JSON string using InputStream
         String jsonContent = new BufferedReader(new InputStreamReader(inputStream))
                 .lines().collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
-        JSONArray jsonArray;
-        try {
-            jsonArray = new JSONArray(jsonContent);
-        } catch (JSONException e) {
-            throw new JSONException("Invalid JSON format: Expected an array at root", e);
-        }
-
+        // Support multiple JSON files and both formats
         Set<String> classSet = new HashSet<>();
         List<JSONObject> allAnnotations = new ArrayList<>();
-
-        for (int i = 0; i < jsonArray.length(); i++) {
-            try {
-                JSONObject frame = jsonArray.getJSONObject(i);
-                JSONArray objects = frame.getJSONArray("objects");
-
-                // Collect classes and annotations
-                for (int j = 0; j < objects.length(); j++) {
-                    JSONObject obj = objects.getJSONObject(j);
-                    try {
-                        JSONObject attributes = obj.getJSONObject("attributes");
-                        //quét tags
-                        attributes.keys().forEachRemaining(this.tagListString::add);
-                        for (String tag: tagListString) {
-                            tagValueMap.put(tag, new HashSet<>());
+        // Walk all JSONs under folderPath
+        try (Stream<Path> stream = Files.walk(Paths.get(folderPath))) {
+            List<Path> jsonFiles = stream
+                    .filter(Files::isRegularFile)
+                    .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".json"))
+                    .collect(Collectors.toList());
+            for (Path p : jsonFiles) {
+                String content = Files.readString(p);
+                boolean legacy = true;
+                JSONArray ja = null;
+                try {
+                    ja = new JSONArray(content);
+                } catch (JSONException ex) {
+                    legacy = false;
+                }
+                if (legacy && ja != null) {
+                    for (int i = 0; i < ja.length(); i++) {
+                        try {
+                            JSONObject frame = ja.getJSONObject(i);
+                            JSONArray objects = frame.getJSONArray("objects");
+                            for (int j = 0; j < objects.length(); j++) {
+                                JSONObject obj = objects.getJSONObject(j);
+                                try {
+                                    JSONObject attributes = obj.getJSONObject("attributes");
+                                    attributes.keys().forEachRemaining(this.tagListString::add);
+                                    for (String tag : tagListString) {
+                                        tagValueMap.put(tag, new HashSet<>());
+                                    }
+                                    int outerType = obj.getInt("type");
+                                    int innerType = attributes.getInt("type");
+                                    String className = this.utilService.getClassName(outerType, innerType);
+                                    classSet.add(className);
+                                    allAnnotations.add(obj);
+                                } catch (JSONException e) {
+                                    System.err.println("Missing or invalid 'class' in object: " + e.getMessage());
+                                }
+                            }
+                        } catch (JSONException e) {
+                            System.err.println("Error processing frame: " + e.getMessage());
                         }
-
-                        //quét class
-                        int outerType = obj.getInt("type");
-                        int innerType = attributes.getInt("type");
-                        String className = this.utilService.getClassName(outerType, innerType);
-
-                        classSet.add(className);
-                        allAnnotations.add(obj); // Store for annotation processing
-
-
+                    }
+                } else {
+                    try {
+                        JSONObject rootObj = new JSONObject(content);
+                        if (rootObj.has("categories")) {
+                            JSONArray cats = rootObj.getJSONArray("categories");
+                            for (int i = 0; i < cats.length(); i++) {
+                                JSONObject c = cats.getJSONObject(i);
+                                String name = c.optString("name", "");
+                                if (name != null && !name.isEmpty()) classSet.add(name);
+                            }
+                        }
                     } catch (JSONException e) {
-                        System.err.println("Missing or invalid 'class' in object " + j + " of frame " + i + ": " + e.getMessage());
+                        // skip invalid JSON
                     }
                 }
-            } catch (JSONException e) {
-                System.err.println("Error processing frame " + i + ": " + e.getMessage());
             }
+        } catch (Exception e) {
+            log.error("scan json error", e);
         }
 
         // Convert classSet to JSONArray for getClassList
         JSONArray classes = new JSONArray(getClassSet(classSet));
-        // Set class for task
         if (!classes.isEmpty()) {
             List<ClassVo> classList = getClassList(classes, taskVo);
             if (taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
                 for (ClassVo classVo : classList) {
                     boolean isClass = false;
-                    for (ClassVo taskClass : taskVo.getClassVoList()){
-                        if(taskClass.getClassName().equals(classVo.getClassName())){
+                    for (ClassVo taskClass : taskVo.getClassVoList()) {
+                        if (taskClass.getClassName().equals(classVo.getClassName())) {
                             isClass = true;
                             break;
                         }
                     }
-                    if(!isClass) {
+                    if (!isClass) {
                         taskVo.getClassVoList().add(classVo);
                     }
                 }
@@ -158,69 +177,48 @@ public class ProjectService {
             }
         }
 
-        // Set annotations for task
-        List<WorkTicketApiResponseVo> workTicketApiResponseList = new ArrayList<>();
-        if(!allAnnotations.isEmpty()) {
-            for(JSONObject annoObj : allAnnotations) {
-                WorkTicketApiResponseVo workTicketApiResponseVo = setWorkTicketApiResponseVo(annoObj, taskVo);
-                workTicketApiResponseList.add(workTicketApiResponseVo);
+        // Add default tags (truncation, occlusion) once
+        List<TagVo> tagList = new ArrayList<>();
+        TagVo truncationTag = new TagVo();
+        truncationTag.setProjectId(taskVo.getProjectId());
+        truncationTag.setTaskId(taskVo.getTaskId());
+        truncationTag.setTagId(idGenerateService.generateTagId());
+        truncationTag.setTagName("truncation");
+        truncationTag.setTagTypeCd("IMG");
+        truncationTag.setTagValTypeCd("20");
+        truncationTag.setColor("#0aa57d");
+        truncationTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
+        if (taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
+            truncationTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
+            truncationTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), truncationTag, taskVo));
+        }
+        tagList.add(truncationTag);
 
-                //===========NEW =========================
-                // Create TagVo list dynamically
-                List<TagVo> tagList = new ArrayList<>();
+        TagVo occlusionTag = new TagVo();
+        occlusionTag.setProjectId(taskVo.getProjectId());
+        occlusionTag.setTaskId(taskVo.getTaskId());
+        occlusionTag.setTagId(idGenerateService.generateTagId());
+        occlusionTag.setTagName("occlusion");
+        occlusionTag.setTagTypeCd("IMG");
+        occlusionTag.setTagValTypeCd("20");
+        occlusionTag.setColor("#b5eb8d");
+        occlusionTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
+        if (taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
+            occlusionTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
+            occlusionTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), occlusionTag, taskVo));
+        }
+        tagList.add(occlusionTag);
 
-                //Dùng để hard code tạo tag cố định: trunc và occ
-                TagVo truncationTag = new TagVo();
-                truncationTag.setProjectId(taskVo.getProjectId());
-                truncationTag.setTaskId(taskVo.getTaskId());
-                truncationTag.setTagId(idGenerateService.generateTagId());
-                truncationTag.setTagName("truncation");
-                truncationTag.setTagTypeCd("IMG");
-                truncationTag.setTagValTypeCd("20");
-                truncationTag.setColor("#0aa57d");
-                truncationTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
-                if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
-                    truncationTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
-                    truncationTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), truncationTag, taskVo));
+        if (taskVo.getTagList() != null && !taskVo.getTagList().isEmpty()) {
+            for (TagVo tv : tagList) {
+                boolean exists = false;
+                for (TagVo t2 : taskVo.getTagList()) {
+                    if (t2.getTagName().equals(tv.getTagName())) { exists = true; break; }
                 }
-                tagList.add(truncationTag);
-
-
-                TagVo occlusionTag = new TagVo();
-                occlusionTag.setProjectId(taskVo.getProjectId());
-                occlusionTag.setTaskId(taskVo.getTaskId());
-                occlusionTag.setTagId(idGenerateService.generateTagId());
-                occlusionTag.setTagName("occlusion");
-                occlusionTag.setTagTypeCd("IMG");
-                occlusionTag.setTagValTypeCd("20");
-                occlusionTag.setColor("#b5eb8d");
-                occlusionTag.setTagValueList(new ArrayList<>(Arrays.asList("1", "2", "3")));
-                if(taskVo.getClassVoList() != null && !taskVo.getClassVoList().isEmpty()) {
-                    occlusionTag.setMatchClass(taskVo.getClassVoList().stream().map(ClassVo::getClassId).collect(Collectors.joining(",")));
-                    occlusionTag.setTagClassVoList(tagClassVoList(taskVo.getClassVoList(), occlusionTag, taskVo));
-                }
-                tagList.add(occlusionTag);
-
-                // Update taskVo tag list
-                if (taskVo.getTagList() != null && !taskVo.getTagList().isEmpty()) {
-                    for (TagVo tagVo : tagList) {
-                        boolean isTag = false;
-                        for (TagVo taskTag : taskVo.getTagList()) {
-                            if (taskTag.getTagName().equals(tagVo.getTagName())) {
-                                isTag = true;
-                                break;
-                            }
-                        }
-                        if (!isTag) {
-                            taskVo.getTagList().add(tagVo);
-                        }
-                    }
-                } else {
-                    taskVo.setTagList(tagList);
-                }
+                if (!exists) taskVo.getTagList().add(tv);
             }
-            taskVo.setWorkTicketApiResponseList(workTicketApiResponseList);
-            taskVo.setTotalObj(totalObj);
+        } else {
+            taskVo.setTagList(tagList);
         }
 
         // Count total files
