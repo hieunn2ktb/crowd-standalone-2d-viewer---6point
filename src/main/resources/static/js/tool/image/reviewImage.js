@@ -275,6 +275,19 @@ page.fn.init = function () {
         }
     });
 
+    // Edit toolbar bindings (simple move for rect)
+    page.data.editMode = false;
+    page.data.drag = { active:false };
+    $("#btnToggleEdit").on('click', function(){
+        page.data.editMode = !page.data.editMode;
+        $(this).toggleClass('on', page.data.editMode);
+        // refresh handles on toggle
+        try { page.fn.edit.refreshHandles(); } catch(e){}
+    });
+    $("#btnSaveJson").on('click', function(){
+        page.fn.edit.saveCurrentImage();
+    });
+
     $("#inputCircleColorStart").val(page.data.config.color.circleStart);
     page.fn.setCircleColorStart(page.data.config.color.circleStart);
     $("#inputCircleColorStart").minicolors({
@@ -1284,6 +1297,16 @@ page.fn.render.rectangle = function (object) {
         o.setAttribute("title", page.fn.render.getTitle(object));
         o.setAttribute("data-workTicketId", object.workTicketId);
         o.setAttribute("data-objectId", object.objectId);
+        try {
+            // Ensure rectangle is clickable and visible for edit dragging
+            o.style.pointerEvents = 'all';
+            if (!o.style.fill || o.style.fill === '') {
+                o.style.fill = object.color || '#00ff00';
+            }
+            o.style.fillOpacity = 0.25; // semi-transparent so underlying image visible
+            o.style.stroke = object.color || '#00ff00';
+            o.style.strokeWidth = 1;
+        } catch(e) {}
         $("#svg_" + object.workTicketId).append(o);
         minXY = {
             x: x
@@ -1294,11 +1317,204 @@ page.fn.render.rectangle = function (object) {
         }
         //add tag label for object
         page.fn.render.tagObjectValue(object, x, y, width, height);
+        // render edit handles if edit mode
+        try { if (page.data.editMode === true) { page.fn.edit.renderHandles(object, x, y, width, height); } } catch(e){}
     } else {
         log.debug("object data is not allow, workTicketId=" + object.workTicketId, "page.fn.render.rectangle");
     }
     return minXY;
 }
+
+// Simple drag-move for rectangle in edit mode
+$(document).on('mousedown', 'svg rect.draw-object', function (evt) {
+    try {
+        if (!page.data.editMode) return;
+        const $rect = $(this);
+        const workTicketId = $rect.attr('data-workTicketId');
+        const objectId = $rect.attr('data-objectId');
+        const svg = $("#svg_" + workTicketId);
+        const scale = parseFloat(svg.attr('scale') || '1');
+        const startX = evt.clientX, startY = evt.clientY;
+        const file = page.data.imageMap.get(workTicketId);
+        if (!file) return;
+        const obj = (file.objectList || []).find(o => o.objectId == objectId);
+        if (!obj || obj.objectType !== 'rect') return;
+        let loc = [];
+        try { loc = JSON.parse(obj.objectLocation); } catch(e){ return; }
+        if (!Array.isArray(loc) || loc.length < 2) return;
+        const p10 = loc[0][0], p11 = loc[0][1], p20 = loc[1][0], p21 = loc[1][1];
+        page.data.drag = {
+            active: true,
+            workTicketId, objectId, scale, startX, startY,
+            p10, p11, p20, p21
+        };
+        evt.preventDefault();
+    } catch(e){}
+});
+
+$(document).on('mousemove', function (evt) {
+    try {
+        const d = page.data.drag; if (!d || !d.active) return;
+        const dx = (evt.clientX - d.startX) / d.scale;
+        const dy = (evt.clientY - d.startY) / d.scale;
+        const file = page.data.imageMap.get(d.workTicketId); if (!file) return;
+        const obj = (file.objectList || []).find(o => o.objectId == d.objectId); if (!obj) return;
+        let loc = JSON.parse(obj.objectLocation);
+        loc[0][0] = d.p10 + dx; loc[0][1] = d.p11 + dy;
+        loc[1][0] = d.p20 + dx; loc[1][1] = d.p21 + dy;
+        obj.objectLocation = JSON.stringify(loc);
+        const x = Math.min(loc[0][0], loc[1][0]);
+        const y = Math.min(loc[0][1], loc[1][1]);
+        const w = Math.abs(loc[1][0] - loc[0][0]);
+        const h = Math.abs(loc[1][1] - loc[0][1]);
+        const $rect = $("#svg_"+d.workTicketId+" rect.draw-object[data-objectId='"+d.objectId+"']");
+        $rect.attr('x', x).attr('y', y).attr('width', w).attr('height', h);
+        if (page.data.editMode === true) {
+            try { page.fn.edit.renderHandles(obj, x, y, w, h); } catch(e){}
+        }
+    } catch(e){}
+});
+
+$(document).on('mouseup', function () {
+    if (page.data.drag && page.data.drag.active) {
+        page.data.drag.active = false;
+    }
+});
+
+page.fn.edit = {};
+page.fn.edit.saveCurrentImage = function(){
+    try {
+        const wt = page.data.lastSelectedImageNumber;
+        const file = page.data.imageMap.get(wt);
+        if (!file) { page.fn.alert('No image selected'); return; }
+        const payload = { workTicketId: wt, objectList: (file.objectList || []).filter(o=>o && o.objectType==='rect') };
+        page.fn.showLoading();
+        fetch('/annotate/save', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+            .then(r=>r.json())
+            .then(rv=>{
+                page.fn.hideLoading();
+                if (rv && rv.result) { page.fn.alert('Saved to JSON'); } else { page.fn.alert('Save failed: '+(rv?.message||'')); }
+            }).catch(e=>{ page.fn.hideLoading(); page.fn.alert('Save failed'); });
+    } catch(e){ page.fn.alert('Save failed'); }
+}
+
+page.fn.edit.refreshHandles = function(){
+    try {
+        // remove all first
+        $("svg rect.bbox-handle").remove();
+        if (!page.data.editMode) return;
+        $("svg[id^='svg_']").each(function(){
+            const $svg = $(this);
+            const wt = this.id.replace('svg_','');
+            const file = page.data.imageMap.get(wt);
+            if (!file || !Array.isArray(file.objectList)) return;
+            file.objectList.forEach(function(object){
+                if (!object || object.objectType !== 'rect' || !object.objectLocation) return;
+                try {
+                    const loc = JSON.parse(object.objectLocation);
+                    if (!Array.isArray(loc) || loc.length < 2) return;
+                    const x = Math.min(loc[0][0], loc[1][0]);
+                    const y = Math.min(loc[0][1], loc[1][1]);
+                    const w = Math.abs(loc[1][0] - loc[0][0]);
+                    const h = Math.abs(loc[1][1] - loc[0][1]);
+                    page.fn.edit.renderHandles(object, x, y, w, h);
+                } catch(e){}
+            });
+        });
+    } catch(e){}
+}
+
+page.fn.edit.renderHandles = function(object, x, y, w, h){
+    try {
+        const wt = object.workTicketId;
+        const oid = object.objectId;
+        const svg = $("#svg_"+wt);
+        // remove old
+        svg.find("rect.bbox-handle[data-objectId='"+oid+"']").remove();
+        const corners = [
+            {c:'nw', cx:x,        cy:y},
+            {c:'ne', cx:x+w,      cy:y},
+            {c:'sw', cx:x,        cy:y+h},
+            {c:'se', cx:x+w,      cy:y+h}
+        ];
+        corners.forEach(function(p){
+            const r = document.createElementNS("http://www.w3.org/2000/svg", 'rect');
+            r.setAttribute('class','bbox-handle');
+            r.setAttribute('data-corner', p.c);
+            r.setAttribute('data-objectId', oid);
+            r.setAttribute('data-workTicketId', wt);
+            const size = 8; // in image units, scales with zoom
+            r.setAttribute('x', p.cx - size/2);
+            r.setAttribute('y', p.cy - size/2);
+            r.setAttribute('width', size);
+            r.setAttribute('height', size);
+            r.style.fill = '#ffffff';
+            r.style.stroke = '#1890ff';
+            r.style.strokeWidth = 1;
+            r.style.pointerEvents = 'all';
+            svg.append(r);
+        })
+    } catch(e){}
+}
+
+// resize handlers
+$(document).on('mousedown', 'svg rect.bbox-handle', function(evt){
+    try {
+        if (!page.data.editMode) return;
+        const $h = $(this);
+        const wt = $h.attr('data-workTicketId');
+        const oid = $h.attr('data-objectId');
+        const corner = $h.attr('data-corner');
+        const svg = $("#svg_"+wt);
+        const scale = parseFloat(svg.attr('scale') || '1');
+        const startX = evt.clientX, startY = evt.clientY;
+        const file = page.data.imageMap.get(wt);
+        if (!file) return;
+        const obj = (file.objectList || []).find(o => o.objectId == oid);
+        if (!obj || obj.objectType !== 'rect') return;
+        let loc = [];
+        try { loc = JSON.parse(obj.objectLocation); } catch(e){ return; }
+        if (!Array.isArray(loc) || loc.length < 2) return;
+        const p1 = {x: loc[0][0], y: loc[0][1]};
+        const p2 = {x: loc[1][0], y: loc[1][1]};
+        const tl = {x: Math.min(p1.x,p2.x), y: Math.min(p1.y,p2.y)};
+        const br = {x: Math.max(p1.x,p2.x), y: Math.max(p1.y,p2.y)};
+        page.data.resize = {active:true, wt, oid, corner, scale, startX, startY, tl: {...tl}, br: {...br}};
+        evt.preventDefault();
+    } catch(e){}
+});
+
+$(document).on('mousemove', function(evt){
+    // resize first priority
+    try {
+        const r = page.data.resize; if (r && r.active) {
+            const dx = (evt.clientX - r.startX)/r.scale;
+            const dy = (evt.clientY - r.startY)/r.scale;
+            let tl = {...r.tl}, br = {...r.br};
+            if (r.corner === 'nw') { tl.x = r.tl.x + dx; tl.y = r.tl.y + dy; }
+            else if (r.corner === 'ne') { br.x = r.br.x + dx; tl.y = r.tl.y + dy; }
+            else if (r.corner === 'sw') { tl.x = r.tl.x + dx; br.y = r.br.y + dy; }
+            else if (r.corner === 'se') { br.x = r.br.x + dx; br.y = r.br.y + dy; }
+            // Update object
+            const file = page.data.imageMap.get(r.wt); if (!file) return;
+            const obj = (file.objectList || []).find(o => o.objectId == r.oid); if (!obj) return;
+            const loc = [ [tl.x, tl.y, ''], [br.x, br.y, ''] ];
+            obj.objectLocation = JSON.stringify(loc);
+            // Update rect element
+            const x = Math.min(tl.x, br.x), y = Math.min(tl.y, br.y);
+            const w = Math.abs(br.x - tl.x), h = Math.abs(br.y - tl.y);
+            const $rect = $("#svg_"+r.wt+" rect.draw-object[data-objectId='"+r.oid+"']");
+            $rect.attr('x', x).attr('y', y).attr('width', w).attr('height', h);
+            // Update handles
+            page.fn.edit.renderHandles(obj, x, y, w, h);
+            return; // don't run move-drag when resizing
+        }
+    } catch(e){}
+});
+
+$(document).on('mouseup', function(){
+    if (page.data.resize && page.data.resize.active) page.data.resize.active = false;
+});
 page.fn.render.drawCube2D = function (object) {
     log.debug(object, "page.fn.render.rectangle");
     let loc = page.fn.render.castLocation(JSON.parse(object.objectLocation));

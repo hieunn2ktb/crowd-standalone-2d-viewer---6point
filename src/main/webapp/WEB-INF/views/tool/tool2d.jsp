@@ -1072,8 +1072,17 @@
     <script type="text/html" id="tmpl-historyNone">
         <span><spring:message code="label.tool.history.none"/></span>
     </script>
+    <style>
+        #editToolbar { position: fixed; top: 10px; right: 10px; z-index: 9999; display: flex; gap: 8px; }
+        #editToolbar .btn { padding: 6px 10px; border: 1px solid #bbb; border-radius: 4px; background: #fff; cursor: pointer; }
+        #editToolbar .btn.on { background: #e6f7ff; border-color: #1890ff; }
+    </style>
 </head>
 <body>
+<div id="editToolbar">
+    <button id="btnToggleEdit" class="btn" title="Toggle edit mode (rect)">Edit</button>
+    <button id="btnSaveJson" class="btn" title="Save current image to JSON">Save</button>
+</div>
 <div class="header-area">
     <div>
         <div class="header-left">

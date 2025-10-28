@@ -1,6 +1,7 @@
 package com.infiniq.ams.standalone.domain.controller;
 
 import com.infiniq.ams.standalone.domain.service.WorkspaceOfAnnotateService;
+import com.infiniq.ams.standalone.domain.service.WorkDataService;
 import com.infiniq.ams.standalone.domain.vo.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class WorkspaceOfAnnotateController {
 
     private final WorkspaceOfAnnotateService workspaceOfAnnotateService;
+    private final WorkDataService workDataService;
 
     private final static String TASK_INFO_KEY = "TaskInformation";
     private final static String DATA_LIST_KEY = "DataList";
@@ -119,6 +122,25 @@ public class WorkspaceOfAnnotateController {
             r.setResult(false);
         }
 
+        return r;
+    }
+
+    @RequestMapping(value = { "/save" }, method = { RequestMethod.POST })
+    @ResponseBody
+    public CommonResponseVo<Boolean> save(@RequestBody SaveAnnotationRequestVo req, HttpServletRequest request) {
+        CommonResponseVo<Boolean> r = new CommonResponseVo<>();
+        try {
+            HttpSession session = request.getSession();
+            TaskVo sessionTask = (TaskVo) session.getAttribute(TASK_INFO_KEY);
+            List<ReviewImageVo> list = (List<ReviewImageVo>) session.getAttribute(DATA_LIST_KEY);
+            boolean ok = workDataService.saveCocoAnnotations(sessionTask, req, list);
+            r.setResult(ok);
+            r.setData(ok);
+        } catch (Exception e) {
+            log.error(e.getMessage(), e);
+            r.setMessage(e.getMessage());
+            r.setResult(false);
+        }
         return r;
     }
 

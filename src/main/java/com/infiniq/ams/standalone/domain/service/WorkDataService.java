@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
@@ -1122,5 +1123,136 @@ public class WorkDataService {
             }
         }
         return null;
+    }
+
+    public boolean saveCocoAnnotations(TaskVo task, SaveAnnotationRequestVo req, List<ReviewImageVo> sessionList) throws Exception {
+        if (task == null || req == null || sessionList == null) return false;
+        ReviewImageVo image = null;
+        for (ReviewImageVo iv : sessionList) {
+            if (req.getWorkTicketId().equals(iv.getWorkTicketId())) { image = iv; break; }
+        }
+        if (image == null) throw new Exception("Image not found for workTicketId");
+        String folderPath = rootPath + File.separator + task.getTaskName();
+        String filePath = image.getOriginalFilePath();
+        if (filePath.startsWith("/")) filePath = filePath.substring(1);
+
+        // Find target JSON containing this image, else fallback to first coco json
+        File targetJson = null;
+        JSONObject targetRoot = null;
+        List<File> jsonFiles = new ArrayList<>();
+        Queue<File> q = new LinkedList<>(); q.add(new File(folderPath));
+        while (!q.isEmpty()) {
+            File cur = q.poll();
+            File[] files = cur.listFiles(); if (files == null) continue;
+            for (File f : files) {
+                if (f.isDirectory()) q.add(f); else if (f.getName().toLowerCase().endsWith(".json")) jsonFiles.add(f);
+            }
+        }
+        for (File jf : jsonFiles) {
+            try (FileInputStream is = new FileInputStream(jf)) {
+                String content = new BufferedReader(new InputStreamReader(is)).lines()
+                        .collect(StringBuilder::new, StringBuilder::append, StringBuilder::append).toString();
+                JSONObject root;
+                try { root = new JSONObject(content); } catch (JSONException ignore) { continue; }
+                if (!root.has("images")) continue;
+                JSONArray imgs = root.getJSONArray("images");
+                for (int i = 0; i < imgs.length(); i++) {
+                    String fn = imgs.getJSONObject(i).optString("file_name", "");
+                    if (fn.startsWith("/")) fn = fn.substring(1);
+                    if (fn.equals(filePath)) { targetJson = jf; targetRoot = root; break; }
+                }
+                if (targetJson != null) break;
+            }
+        }
+        if (targetJson == null && !jsonFiles.isEmpty()) {
+            // fallback: first json as coco
+            File jf = jsonFiles.get(0);
+            String content = Files.readString(jf.toPath());
+            targetRoot = new JSONObject(content);
+            targetJson = jf;
+        }
+        if (targetJson == null || targetRoot == null) throw new Exception("No COCO json found to save");
+
+        // Ensure categories map
+        Map<String, Integer> nameToCatId = new HashMap<>();
+        JSONArray categories = targetRoot.has("categories") ? targetRoot.getJSONArray("categories") : new JSONArray();
+        int maxCatId = 0;
+        for (int i = 0; i < categories.length(); i++) {
+            JSONObject c = categories.getJSONObject(i); int id = c.getInt("id"); String name = c.optString("name","");
+            nameToCatId.put(name, id); maxCatId = Math.max(maxCatId, id);
+        }
+
+        // Ensure images map
+        JSONArray images = targetRoot.has("images") ? targetRoot.getJSONArray("images") : new JSONArray();
+        Long imageId = null; int maxImageId = 0;
+        for (int i = 0; i < images.length(); i++) {
+            JSONObject im = images.getJSONObject(i); long id = im.getLong("id"); maxImageId = Math.max(maxImageId, (int) id);
+            String fn = im.optString("file_name", ""); if (fn.startsWith("/")) fn = fn.substring(1);
+            if (fn.equals(filePath)) imageId = id;
+        }
+        if (imageId == null) {
+            imageId = (long) (maxImageId + 1);
+            JSONObject newIm = new JSONObject();
+            newIm.put("id", imageId);
+            newIm.put("file_name", image.getOriginalFilePath());
+            images.put(newIm);
+            targetRoot.put("images", images);
+        }
+
+        // Prepare annotations array and remove old ones of this image
+        JSONArray annotations = targetRoot.has("annotations") ? targetRoot.getJSONArray("annotations") : new JSONArray();
+        JSONArray kept = new JSONArray();
+        int maxAnnId = 0;
+        for (int i = 0; i < annotations.length(); i++) {
+            JSONObject a = annotations.getJSONObject(i);
+            maxAnnId = Math.max(maxAnnId, a.optInt("id", 0));
+            if (a.optLong("image_id", -1) != imageId) kept.put(a);
+        }
+
+        // Add new annotations from objectList
+        if (req.getObjectList() != null) {
+            for (ImageObjectVo o : req.getObjectList()) {
+                if (o == null) continue;
+                String type = o.getObjectType();
+                if (type == null || !type.equals("rect")) continue;
+                try {
+                    // parse two points
+                    JSONArray loc = new JSONArray(o.getObjectLocation());
+                    JSONArray p1 = loc.getJSONArray(0);
+                    JSONArray p2 = loc.getJSONArray(1);
+                    double x1 = p1.getDouble(0), y1 = p1.getDouble(1);
+                    double x2 = p2.getDouble(0), y2 = p2.getDouble(1);
+                    double x = Math.min(x1, x2), y = Math.min(y1, y2);
+                    double w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+
+                    String className = o.getClassName();
+                    if (className == null || className.isEmpty()) className = "unknown";
+                    Integer catId = nameToCatId.get(className);
+                    if (catId == null) {
+                        catId = ++maxCatId; nameToCatId.put(className, catId);
+                        JSONObject c = new JSONObject(); c.put("id", catId); c.put("name", className);
+                        categories.put(c);
+                        targetRoot.put("categories", categories);
+                    }
+
+                    JSONObject a = new JSONObject();
+                    a.put("id", ++maxAnnId);
+                    a.put("image_id", imageId);
+                    a.put("category_id", catId);
+                    a.put("bbox", new JSONArray().put(x).put(y).put(w).put(h));
+                    a.put("area", w * h);
+                    a.put("segmentation", new JSONArray().put(new JSONArray().put(x).put(y).put(x + w).put(y + h)));
+                    a.put("type", "rect");
+                    kept.put(a);
+                } catch (Exception ignore) { }
+            }
+        }
+        targetRoot.put("annotations", kept);
+
+        // write back
+        try (FileWriter fw = new FileWriter(targetJson)) {
+            fw.write(targetRoot.toString(2));
+        }
+        return true;
     }
 }
